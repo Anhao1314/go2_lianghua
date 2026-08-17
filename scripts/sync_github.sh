@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# 把 data/datasets 提交并推送到 GitHub；--check 只打印不写。
+set -euo pipefail
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO"
+BRANCH="${GO2W_QUANT_BRANCH:-main}"
+
+case "${1:-}" in
+  --check)
+    git status --porcelain -- data/datasets
+    ;;
+  --once)
+    if git status --porcelain -- data/datasets | grep -q .; then
+      git add data/datasets
+      git commit -m "[data] $(date '+%Y-%m-%d %H:%M:%S')" >/dev/null
+      echo "已提交数据集更新"
+    else
+      echo "数据集无改动"
+    fi
+    if ! git remote get-url origin >/dev/null 2>&1; then
+      echo "未配置远端 origin，跳过推送（可在 GitHub 建仓后 git remote add origin ...）"
+      exit 0
+    fi
+    git push origin "$BRANCH"
+    echo "已推送到 $BRANCH"
+    ;;
+  *)
+    echo "用法: $0 {--check|--once}" >&2
+    exit 1
+    ;;
+esac

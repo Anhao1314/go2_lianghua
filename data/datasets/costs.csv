@@ -1,0 +1,4 @@
+﻿date,thread_id,turns,model,input_tokens,cached_tokens,output_tokens,reasoning_tokens,total_tokens,cost_yuan
+2026-08-10,unknown,5,deepseek-v4-flash,941718,940416,2826,1146,944544,0.1234
+2026-08-13,unknown,8,deepseek-v4-flash,2657348,2636416,7057,4068,2664405,0.39
+2026-08-17,unknown,2,deepseek-v4-flash,94956,85760,644,284,95600,0.042

@@ -1,0 +1,31 @@
+{
+  "source_repo": "/home/anhao/jiaoben-web/unitree-go2w-mobility",
+  "lianghua_db": "~/文档/lianghua/data/usage.db",
+  "output_dir": "data/datasets",
+  "raw_dir": "data/raw",
+  "tasks": [
+    "balance",
+    "full_chain",
+    "traverse_slope",
+    "traverse_flat_slope",
+    "traverse_curve"
+  ],
+  "archived_tasks": [
+    "traverse",
+    "traverse_v1",
+    "balance_v1"
+  ],
+  "peak_hours": [10, 22],
+  "pricing": {
+    "peak": {
+      "cached_input": 0.10,
+      "uncached_input": 3.0,
+      "output": 9.0
+    },
+    "offpeak": {
+      "cached_input": 0.05,
+      "uncached_input": 1.5,
+      "output": 4.5
+    }
+  }
+}
