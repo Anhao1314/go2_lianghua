@@ -6,6 +6,11 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO"
 BRANCH="${GO2W_QUANT_BRANCH:-main}"
 
+# 显式使用 GitHub 私钥，避免 crontab/systemd 环境无 ssh-agent 导致推送失败
+if [ -f "$HOME/.ssh/id_ed25519_github" ]; then
+  export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/id_ed25519_github -o IdentitiesOnly=yes"
+fi
+
 case "${1:-}" in
   --check)
     git status --porcelain -- data/datasets
