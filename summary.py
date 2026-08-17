@@ -34,15 +34,15 @@ def print_summary(cfg: dict) -> None:
 
     runs = read_table(out_dir, "runs")
     if runs is not None and len(runs):
-        completed = int(runs["completed"].astype(bool).sum())
-        with_report = int(runs["verdict"].notna().sum())
+        completed = len(runs[runs["completed"].astype(bool)])
+        with_report = len(runs[runs["verdict"].notna()])
         print(f"\nrun 覆盖: {len(runs)} 个 (完成 {completed}，有验收报告 {with_report})")
         print("按任务:")
         for task, g in runs.groupby("task"):
             print(
                 f"  {task:<22} {len(g)} runs, "
-                f"完成 {int(g['completed'].astype(bool).sum())}, "
-                f"有报告 {int(g['verdict'].notna().sum())}"
+                f"完成 {len(g[g['completed'].astype(bool)])}, "
+                f"有报告 {len(g[g['verdict'].notna()])}"
             )
 
     evals = read_table(out_dir, "eval_points")

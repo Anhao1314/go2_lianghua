@@ -13,7 +13,8 @@
   "archived_tasks": [
     "traverse",
     "traverse_v1",
-    "balance_v1"
+    "balance_v1",
+    "full_chain_v1"
   ],
   "peak_hours": [10, 22],
   "pricing": {
