@@ -60,3 +60,7 @@ bash scripts/sync_github.sh --once    # 提交 data/datasets 并推送
 `runs.csv` 已包含建模标签：`verdict`（验收 pass/fail）、`success_rate`（成功率）、
 `duration_seconds`（训练时长）。v2 将基于这些字段训练“验收早停分类”与“耗时/ETA 回归”，
 模型以 joblib + `predict.py` 交付，Linux / Windows 均可运行。
+
+另提供独立的 `data/datasets/labels.csv`：每个 (task, seed) 一行，直接聚合
+`verdict` / `success_rate` / `duration_seconds` / `total_steps` /
+`final_reward` / `final_ep_len`，作为 v2 模型的目标变量表。

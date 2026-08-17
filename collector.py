@@ -432,6 +432,30 @@ def _duration_map(snapshot_rows: list[dict]) -> dict[tuple[str, str], float]:
     return out
 
 
+def build_labels(runs_rows: list[dict], eval_rows: list[dict]) -> list[dict]:
+    """每个 (task, seed) 一行的建模标签：验收结论、成功率、耗时、最终指标。"""
+    last_eval: dict[tuple[str, str], dict] = {}
+    for r in eval_rows:
+        last_eval[(r["task"], r["seed"])] = r
+    out: list[dict] = []
+    for r in runs_rows:
+        e = last_eval.get((r["task"], r["seed"]))
+        out.append(
+            {
+                "task": r["task"],
+                "seed": r["seed"],
+                "completed": r["completed"],
+                "verdict": r["verdict"],
+                "success_rate": r["success_rate"],
+                "duration_seconds": r["duration_seconds"],
+                "total_steps": r["total_steps"],
+                "final_reward": e["mean_reward"] if e else None,
+                "final_ep_len": e["mean_ep_len"] if e else None,
+            }
+        )
+    return out
+
+
 def collect(cfg: dict) -> dict[str, int]:
     source = cfg.get("source_repo")
     if isinstance(source, str):
@@ -461,6 +485,7 @@ def collect(cfg: dict) -> dict[str, int]:
     dur = _duration_map(snap_rows)
     for row in runs_rows:
         row["duration_seconds"] = dur.get((row["task"], row["seed"]))
+    labels_rows = build_labels(runs_rows, eval_rows)
 
     reports_rows = parse_reports(source / "reports")
     costs_rows = parse_costs(cfg.get("lianghua_db"), cfg["peak_hours"], cfg["pricing"])
@@ -472,6 +497,7 @@ def collect(cfg: dict) -> dict[str, int]:
         "snapshots": _frame(snap_rows, "snapshots"),
         "reports": _frame(reports_rows, "reports"),
         "costs": _frame(costs_rows, "costs"),
+        "labels": _frame(labels_rows, "labels"),
     }
     for table, df in tables.items():
         keys = KEY_COLUMNS[table]

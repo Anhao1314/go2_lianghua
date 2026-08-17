@@ -243,6 +243,7 @@ class CollectTest(unittest.TestCase):
             self.assertEqual(first["snapshots"], 2)
             self.assertEqual(first["reports"], 1)
             self.assertEqual(first["costs"], 0)
+            self.assertEqual(first["labels"], first["runs"])
 
             out = Path(cfg["output_dir"])
             for table, n in first.items():
@@ -261,6 +262,13 @@ class CollectTest(unittest.TestCase):
             self.assertEqual(balance["total_steps"], 8000000)
             self.assertEqual(balance["envs"], 8)
             self.assertAlmostEqual(balance["duration_seconds"], 60.0)
+
+            labels = pd.read_csv(out / "labels.csv")
+            bl = labels[labels["task"] == "balance"].iloc[0]
+            self.assertEqual(bl["verdict"], "pass")
+            self.assertAlmostEqual(bl["duration_seconds"], 60.0)
+            self.assertAlmostEqual(bl["final_reward"], 2.0)
+            self.assertAlmostEqual(bl["final_ep_len"], 200.0)
 
 
 class SchemaAndPortabilityTest(unittest.TestCase):
@@ -282,6 +290,7 @@ class SchemaAndPortabilityTest(unittest.TestCase):
                 "snapshots",
                 "reports",
                 "costs",
+                "labels",
             },
         )
         for table, cols in SCHEMA.items():

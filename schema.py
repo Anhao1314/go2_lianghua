@@ -95,6 +95,17 @@ SCHEMA: dict[str, list[tuple[str, str, str]]] = {
         ("total_tokens", "int", "总 token 合计"),
         ("cost_yuan", "float", "估算成本（元）"),
     ],
+    "labels": [
+        ("task", "str", "任务名"),
+        ("seed", "str", "seed 编号"),
+        ("completed", "bool", "是否训练完成"),
+        ("verdict", "str", "验收结论 pass/fail（有报告时）"),
+        ("success_rate", "float", "整体成功率（traverse 类）"),
+        ("duration_seconds", "float", "训练时长秒（近似）"),
+        ("total_steps", "int", "目标总步数"),
+        ("final_reward", "float", "最后一次评估平均奖励"),
+        ("final_ep_len", "float", "最后一次评估平均 episode 长度"),
+    ],
 }
 
 # 幂等去重键：重复运行 collect 后行数不变
@@ -105,6 +116,7 @@ KEY_COLUMNS: dict[str, list[str]] = {
     "snapshots": ["time", "task", "seed"],
     "reports": ["task", "seed", "label"],
     "costs": ["date", "thread_id"],
+    "labels": ["task", "seed"],
 }
 
 
