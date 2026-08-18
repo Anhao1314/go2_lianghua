@@ -56,6 +56,98 @@ def classify_run(run_dir: pathlib.Path, now: float | None = None,
     return None, f"fresh {age_h:.1f}h"
 
 
+def _run_frame(df, task, seed, by):
+    """过滤单 run 并按时间/步长排序（与 consistency_check 同口径）。"""
+    if df is None or df.empty:
+        return pd.DataFrame()
+    d = df[(df["task"] == task) & (df["seed"] == seed)].copy()
+    d[by] = pd.to_numeric(d[by], errors="coerce")
+    return d.dropna(subset=[by]).sort_values(by).reset_index(drop=True)
+
+
+def _tail_stall_minutes(snaps_df):
+    """窗口末端当前连续停滞分钟数（timesteps 不变段，恢复即归零）。"""
+    if snaps_df is None or len(snaps_df) < 2:
+        return 0.0
+    d = snaps_df.sort_values("time").reset_index(drop=True)
+    times = [float(t) for t in d["time"]]
+    vals = pd.to_numeric(d["timesteps"], errors="coerce").to_numpy(dtype=float)
+    start_t = None
+    for i in range(1, len(vals)):
+        if pd.isna(vals[i]) or pd.isna(vals[i - 1]):
+            start_t = None
+        elif vals[i] == vals[i - 1]:
+            if start_t is None:
+                start_t = times[i - 1]
+        else:
+            start_t = None
+    if start_t is None:
+        return 0.0
+    return (times[-1] - start_t) / 60.0
+
+
+def _recent_neg_all(evals_df, window: int = 5) -> bool | None:
+    """最近 window 个有效 eval 点是否全部为负（点数不足按可用计）。"""
+    if evals_df is None or evals_df.empty:
+        return None
+    d = evals_df.copy()
+    d["mean_reward"] = pd.to_numeric(d["mean_reward"], errors="coerce")
+    d = d.dropna(subset=["mean_reward"])
+    if d.empty:
+        return None
+    return bool((d["mean_reward"].tail(window) < 0).all())
+
+
+def classify_local(
+    task: str,
+    seed: str,
+    tables: dict,
+    cfg: dict,
+    stall_minutes: float | None = None,
+    neg_recent: bool | None = None,
+) -> tuple[bool | None, str]:
+    """基于本地 data/datasets 判定是否真正崩溃（不依赖 Linux run 目录）。
+
+    判定逻辑：
+      - 已完成（runs.completed=True）：verdict=fail -> True；verdict=pass -> False；
+        verdict 缺失 -> None（无法判定）
+      - 未完成：尾部停滞 >= risk.stall_minutes.watch（默认 30 分钟）且最近 5 个
+        有效 eval 点奖励持续为负 -> True；仅停滞达标 -> None（无法判定）；
+        无停滞 -> None（训练中/新鲜）
+    """
+    runs = tables.get("runs")
+    row = None
+    if runs is not None and len(runs):
+        m = runs[(runs["task"] == task) & (runs["seed"] == seed)]
+        if len(m):
+            row = m.iloc[0]
+    completed = None
+    verdict = None
+    if row is not None:
+        cv = row.get("completed")
+        completed = bool(cv) if pd.notna(cv) else None
+        v = row.get("verdict")
+        verdict = str(v).strip().lower() if (pd.notna(v) and str(v).strip()) else None
+    if completed is True:
+        if verdict == "fail":
+            return True, "completed+fail"
+        if verdict == "pass":
+            return False, "completed+pass"
+        return None, "completed_no_verdict"
+    snaps = _run_frame(tables.get("snapshots"), task, seed, by="time")
+    if snaps.empty:
+        return None, "no_snapshots"
+    watch = float(cfg.get("risk", {}).get("stall_minutes", {}).get("watch", 30))
+    stall = _tail_stall_minutes(snaps) if stall_minutes is None else stall_minutes
+    evals = _run_frame(tables.get("eval_points"), task, seed, by="timesteps")
+    neg = _recent_neg_all(evals) if neg_recent is None else neg_recent
+    if stall >= watch and neg is True:
+        return True, f"stall {stall:.0f}min+neg_reward"
+    if stall >= watch:
+        return None, f"stall {stall:.0f}min_no_neg"
+    return None, f"fresh stall {stall:.0f}min"
+
+
 def build_annotations(
     rows: list[dict],
     classify,
@@ -102,13 +194,15 @@ def main() -> None:
         print("无告警日志，跳过标注:", log_path)
         return
     rows = pd.read_csv(log_path).to_dict("records")
-    source = cfg.get("source_repo")
-    if source is None or not source.is_dir():
-        raise SystemExit("需要 source_repo 才能对照 run 目录")
+    out_dir = pathlib.Path(cfg.get("output_dir", "data/datasets"))
+    tables: dict = {}
+    for name in ("runs", "snapshots", "eval_points"):
+        p = out_dir / f"{name}.csv"
+        if p.exists():
+            tables[name] = pd.read_csv(p)
 
     def classify(task: str, seed: str):
-        seed_dir = source / "rl" / "runs" / task / seed
-        return classify_run(seed_dir)
+        return classify_local(task, seed, tables, cfg)
 
     annotations = build_annotations(rows, classify)
     out_path = PROJECT_ROOT / "data" / "monitor" / "alert_annotations.csv"
