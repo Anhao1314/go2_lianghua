@@ -73,6 +73,14 @@
     "explained_variance": {
       "neg_points": 10
     },
+    "kl_divergent": {
+      "r2": 3,
+      "r3": 5
+    },
+    "restart_count": {
+      "r2": 2,
+      "r3": 4
+    },
     "nan": {
       "warn": 1,
       "severe": 3

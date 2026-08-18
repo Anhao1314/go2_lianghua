@@ -111,20 +111,16 @@ class ConsistencyCheckTest(unittest.TestCase):
     def test_clean_mini_run_all_match(self):
         summary = self._run(mini_tables())
         self.assertEqual(summary["total_sections"], 3)
-        # 四个可对齐因子全过；stall 第 2/3 截面为"语义差异"（离线 max-so-far vs 实时当前）
-        for factor in ("eval_drawdown", "eval_neg_ratio", "eval_neg_ratio_recent", "approx_kl_last"):
+        # 修复后：全部可对齐因子（含新增 4 因子）逐截面一致，stall 在容差内
+        aligned = ("eval_drawdown", "eval_neg_ratio", "eval_neg_ratio_recent",
+                   "neg_ratio_current", "approx_kl_last", "kl_divergent",
+                   "kl_divergent_streak", "stall_minutes", "current_stall_minutes",
+                   "restart_count")
+        for factor in aligned:
             st = summary["factor_stats"][factor]
             self.assertEqual(st["passed"], 3, factor)
             self.assertEqual(st["failed"], 0, factor)
-        stall = summary["factor_stats"]["stall_minutes"]
-        self.assertEqual(stall["passed"], 1)  # 第 1 截面无停滞
-        self.assertEqual(stall["failed"], 2)
-        self.assertEqual(
-            stall["stall_classes"],
-            {"数值一致": 0, "语义差异": 2, "真实数值不一致": 0},
-        )
-        self.assertEqual(len(summary["failed_sections"]), 2)
-        self.assertEqual([f["timesteps"] for f in summary["failed_sections"]], [200000.0, 300000.0])
+        self.assertEqual(len(summary["failed_sections"]), 0)
 
     def test_na_factors_excluded(self):
         summary = self._run(mini_tables())
@@ -134,8 +130,8 @@ class ConsistencyCheckTest(unittest.TestCase):
             self.assertEqual(st["failed"], 0, factor)
             self.assertEqual(st["passed"], 0, factor)
 
-    def test_neg_ratio_recent_window_mismatch(self):
-        # 离线 recent_window=5，实时 history=20：第 6 截面 last5=0.4 vs history6=2/6
+    def test_neg_ratio_recent_window_aligned(self):
+        # 修复后：实时取 history 尾 recent_window=5 点，与离线 last5 一致
         tables = mini_tables()
         tables["eval_points"] = make_evals([1.0, 1.0, 1.0, 1.0, -1.0, -1.0])
         tables["tb_points"] = make_tbs([0.02] * 6)
@@ -145,31 +141,33 @@ class ConsistencyCheckTest(unittest.TestCase):
         )
         summary = self._run(tables)
         st = summary["factor_stats"]["eval_neg_ratio_recent"]
-        self.assertEqual(st["failed"], 1)
-        self.assertEqual(st["max_diff_timesteps"], 600000.0)
-        self.assertAlmostEqual(st["max_diff"], 0.4 - 2.0 / 6.0, places=4)
-        self.assertEqual(len(summary["failed_sections"]), 1)
-        det = summary["failed_sections"][0]["details"]["eval_neg_ratio_recent"]
-        self.assertEqual(det["offline"], 0.4)
-        self.assertAlmostEqual(det["online"], 2.0 / 6.0, places=4)
+        self.assertEqual(st["passed"], 6)
+        self.assertEqual(st["failed"], 0)
+        self.assertEqual(len(summary["failed_sections"]), 0)
+        last_row = pd.read_csv(summary["out_path"], encoding="utf-8-sig").iloc[-1]
+        self.assertAlmostEqual(last_row["eval_neg_ratio_recent_offline"], 0.4, places=4)
+        self.assertAlmostEqual(last_row["eval_neg_ratio_recent_online"], 0.4, places=4)
 
     def test_approx_kl_current_invalid(self):
-        # 第 3 截面当前 tb 点 kl=5.0（损坏）: 离线回退窗口内最后有效值 0.03，实时为 None
+        # 修复后：第 3 截面当前 tb 点 kl=5.0（损坏）: 离线回退 0.03，实时回退 last_valid_kl=0.03
         tables = mini_tables()
         tables["tb_points"] = make_tbs([0.02, 0.03, 5.0], steps=[50000, 150000, 250000])
         summary = self._run(tables)
         st = summary["factor_stats"]["approx_kl_last"]
-        self.assertEqual(st["passed"], 2)
-        self.assertEqual(st["failed"], 1)
-        self.assertEqual(st["max_diff_timesteps"], 300000.0)
-        self.assertEqual(st["max_diff"], 0.03)  # 一侧缺失: 存在侧量值
-        kl_fails = [f for f in summary["failed_sections"]
-                    if f["details"]["approx_kl_last"]["passed"] is False]
-        self.assertEqual(len(kl_fails), 1)
-        self.assertEqual(kl_fails[0]["index"], 3)
-        det = kl_fails[0]["details"]["approx_kl_last"]
-        self.assertEqual(det["offline"], 0.03)
-        self.assertIsNone(det["online"])
+        self.assertEqual(st["passed"], 3)
+        self.assertEqual(st["failed"], 0)
+        kd = summary["factor_stats"]["kl_divergent"]
+        self.assertEqual(kd["passed"], 3)
+        ks = summary["factor_stats"]["kl_divergent_streak"]
+        self.assertEqual(ks["passed"], 3)
+        rows = pd.read_csv(summary["out_path"], encoding="utf-8-sig")
+        last = rows.iloc[-1]
+        self.assertAlmostEqual(last["approx_kl_last_offline"], 0.03, places=4)
+        self.assertAlmostEqual(last["approx_kl_last_online"], 0.03, places=4)
+        self.assertEqual(last["kl_divergent_offline"], True)
+        self.assertEqual(last["kl_divergent_online"], True)
+        self.assertEqual(last["kl_divergent_streak_offline"], 1)
+        self.assertEqual(last["kl_divergent_streak_online"], 1)
 
     def test_approx_kl_both_none(self):
         # 窗口无任何有效 kl: 离线缺键(视为 None)，实时过滤为 None -> 双 None 通过
@@ -179,6 +177,13 @@ class ConsistencyCheckTest(unittest.TestCase):
         st = summary["factor_stats"]["approx_kl_last"]
         self.assertEqual(st["passed"], 3)
         self.assertEqual(st["failed"], 0)
+        # 全部截面 kl 发散且 streak 逐截面递增（1/2/3），两侧一致
+        ks = summary["factor_stats"]["kl_divergent_streak"]
+        self.assertEqual(ks["passed"], 3)
+        self.assertEqual(ks["failed"], 0)
+        rows = pd.read_csv(summary["out_path"], encoding="utf-8-sig")
+        self.assertEqual(rows["kl_divergent_streak_offline"].tolist(), [1, 2, 3])
+        self.assertEqual(rows["kl_divergent_streak_online"].tolist(), [1, 2, 3])
 
     def test_stall_simulation_fake_clock(self):
         with cc.OnlineSimulator("balance", "seed00", make_cfg()) as sim:
@@ -189,13 +194,15 @@ class ConsistencyCheckTest(unittest.TestCase):
                 cc.build_eval_seed("balance", "seed00", 100000.0, 10.0, [10.0], 0.02, 0.8),
                 {}, 120.0,
             )
-            self.assertEqual(f1["stall_minutes"], 1.5)  # (120-30)/60
+            self.assertEqual(f1["stall_minutes"], 1.5)  # max-so-far：(120-30)/60
+            self.assertEqual(f1["current_stall_minutes"], 1.5)
             sim.poll_snapshot(200000.0, 150.0)
             f2 = sim.poll_eval(
                 cc.build_eval_seed("balance", "seed00", 200000.0, 20.0, [10.0, 20.0], 0.03, 0.8),
                 {}, 150.0,
             )
-            self.assertEqual(f2["stall_minutes"], 0.0)  # 步长变化归零
+            self.assertEqual(f2["stall_minutes"], 1.5)  # max-so-far 持久
+            self.assertEqual(f2["current_stall_minutes"], 0.0)  # 当前停滞归零
 
     def test_current_stall_minutes(self):
         snaps = make_snaps([0.0, 30.0, 60.0], [100000.0, 100000.0, 100000.0])
@@ -210,22 +217,21 @@ class ConsistencyCheckTest(unittest.TestCase):
 
     def test_restart_count(self):
         self.assertEqual(cc._restart_count(make_snaps([0.0, 30.0, 60.0], [100000.0, 100000.0, 200000.0])), 0)
+        # 规格定义：>100k -> <10k；100k->8k 不算（100k 不 >100k）
         self.assertEqual(
             cc._restart_count(make_snaps([0.0, 30.0, 60.0, 90.0], [100000.0, 8000.0, 200000.0, 8000.0])),
-            2,
+            1,
         )
+        # 1384448->12288 不满足 <10k，不计
+        self.assertEqual(
+            cc._restart_count(make_snaps([0.0, 30.0], [1384448.0, 12288.0])), 0)
         # 迷你 run 无回退
         self.assertEqual(cc._restart_count(mini_tables()["snapshots"]), 0)
-        # 真实数据存在回退（balance/seed00 快照流）
+        # 真实数据存在规格回退（balance/seed00 快照流，3 次）
         cfg = make_cfg()
         snaps = cc._run_frame(pd.read_csv(PROJECT_ROOT / "data/datasets/snapshots.csv"),
                               "balance", "seed00", by="time")
-        self.assertEqual(cc._restart_count(snaps), 5)
-
-    def test_classify_stall(self):
-        self.assertEqual(cc.classify_stall(1.5, 0.0, 0.0), "语义差异")
-        self.assertEqual(cc.classify_stall(1.5, 1.5, 1.5), "数值一致")
-        self.assertEqual(cc.classify_stall(5.0, 0.0, 4.0), "真实数值不一致")
+        self.assertEqual(cc._restart_count(snaps), 3)
 
     def test_no_snapshots_raises(self):
         tables = mini_tables()

@@ -3,10 +3,12 @@
 对同一 run 逐 eval 点推进，在同一时间截面上并行计算：
   - 离线路径: factors.run_factors()（历史数据截断视角，基准）
   - 实时路径: RealtimeMonitor.compute_factors()（webpanel API 因子适配器）
-输出每截面 7 个关键因子的 offline/online/abs_diff/passed 与控制台摘要。
+输出每截面关键因子（drawdown / 负奖励占比 / 停滞 / KL / 重启等）的
+offline/online/abs_diff/passed 与控制台摘要。
 
 原则：
-  - 离线是基准，本模块只读对比，不修改 factors.py / realtime_monitor.py / config.json。
+  - 离线是基准；P0 修复后 factors.py 与 realtime_monitor.py 输出同一定义，
+    本模块用于回归校验（发现不一致即回退门槛）。
   - 只读 data/datasets，输出 data/modeling/consistency_check_YYYY-MM-DD.csv（utf-8-sig）。
   - 确定性：同一输入 -> 同一输出（假时钟回放，无真实网络）。
 """
@@ -34,16 +36,19 @@ COMPARE_SPECS: dict[str, dict[str, Any]] = {
     "eval_drawdown": {"mode": "abs", "tolerance": 0.005},
     "eval_neg_ratio_recent": {"mode": "abs", "tolerance": 0.005},
     "eval_neg_ratio": {"mode": "abs", "tolerance": 0.005},
+    "neg_ratio_current": {"mode": "abs", "tolerance": 0.005},
     "stall_minutes": {"mode": "abs", "tolerance": 1.0},
+    "current_stall_minutes": {"mode": "abs", "tolerance": 1.0},
+    "restart_count": {"mode": "exact", "tolerance": 0.0},
     "approx_kl_last": {"mode": "exact", "tolerance": 0.0},
+    "kl_divergent": {"mode": "exact", "tolerance": 0.0},
+    "kl_divergent_streak": {"mode": "exact", "tolerance": 0.0},
     "eval_std_recent": {"mode": "abs", "tolerance": 0.01},
     "eval_slope_per_1e6": {"mode": "rel", "tolerance": 0.05},
 }
 
 # 实时路径结构上不可用的因子（API 无 std_reward / 带步长的奖励历史），计为 N/A
 NA_ONLINE_FACTORS = {"eval_std_recent", "eval_slope_per_1e6"}
-
-STALL_CLASSES = ("数值一致", "语义差异", "真实数值不一致")
 
 
 class _FakeClock:
@@ -110,6 +115,8 @@ class OnlineSimulator:
         self.fake.now = float(t)
         self.monitor.update_state(self.task, self.seed_id, seed)
         st = self.monitor.state[(self.task, self.seed_id)]
+        # 与生产 poll_once 对齐：update_state -> update_kl_state -> compute_factors
+        self.monitor.update_kl_state(st, seed.get("tb_kl"))
         return self.monitor.compute_factors(self.task, seed, resources, st)
 
 
@@ -229,18 +236,15 @@ def compare_factors(off: dict[str, Any], on: dict[str, Any]) -> dict[str, dict[s
 
 
 def _restart_count(snaps: pd.DataFrame) -> int:
-    """快照流中 timesteps 回退（run 重启）的次数。
-
-    实时状态机按设计在回退时整体重置（neg_count/poll_count/peak 清零），
-    与离线按完整 eval 序列计算的口径不同；该计数用于在报告中解释差异来源。
-    """
+    """快照流中规格回退（timesteps 从 >100k 回退到 <10k）次数（与 factors/实时状态机同口径）。"""
     vals = pd.to_numeric(snaps["timesteps"], errors="coerce").to_numpy(dtype=float)
     cnt = 0
     prev = None
     for v in vals:
         if pd.isna(v):
+            prev = None
             continue
-        if prev is not None and v < prev:
+        if prev is not None and prev > 100000 and v < 10000:
             cnt += 1
         prev = v
     return cnt
@@ -271,15 +275,6 @@ def _current_stall_minutes(snaps: pd.DataFrame) -> float:
     return (times[-1] - start_t) / 60.0
 
 
-def classify_stall(offline_max: float, offline_current: float, online: float, tolerance: float = 1.0) -> str:
-    """把 stall 差异分为三类：数值一致 / 语义差异（离线 max-so-far vs 实时当前）/ 真实数值不一致。"""
-    if abs(offline_max - online) < tolerance:
-        return "数值一致"
-    if abs(offline_current - online) < tolerance:
-        return "语义差异"
-    return "真实数值不一致"
-
-
 def _resources_from_snapshot(row: pd.Series) -> dict[str, Any]:
     return {
         "cpu_percent": row.get("cpu_percent"),
@@ -295,7 +290,6 @@ def _new_factor_stats() -> dict[str, Any]:
         "na": 0,
         "max_diff": None,
         "max_diff_timesteps": None,
-        "stall_classes": None,
     }
 
 
@@ -322,7 +316,6 @@ def run_check(
 
     rows: list[dict[str, Any]] = []
     factor_stats: dict[str, dict[str, Any]] = {f: _new_factor_stats() for f in COMPARE_SPECS}
-    stall_classes = {k: 0 for k in STALL_CLASSES}
     failed_sections: list[dict[str, Any]] = []
 
     with OnlineSimulator(task, seed, cfg) as sim:
@@ -338,9 +331,22 @@ def run_check(
                 snap_ptr += 1
             tb_i = tbs[tbs["step"] <= ts_i]
             tb_row = tb_i.iloc[-1] if len(tb_i) else None
+            # 按 tb 行粒度推进 KL 状态（与生产每 5s 轮询一致）：本截面新增 tb 行逐行喂入，
+            # 使 last_valid_kl / kl_divergent 与离线窗口（step<=ts_i）完全一致
+            if i == 0:
+                new_tb = tbs[tbs["step"] <= ts_i]
+            else:
+                prev_ts_i = float(evals["timesteps"].iloc[i - 1])
+                new_tb = tbs[(tbs["step"] > prev_ts_i) & (tbs["step"] <= ts_i)]
+            st_kl = sim.monitor.state[(sim.task, sim.seed_id)]
+            for _, tb_x in new_tb.iterrows():
+                sim.monitor.update_kl_state(st_kl, tb_x["approx_kl"])
             history = [float(x) for x in evals["mean_reward"].iloc[: i + 1].tolist()][-HISTORY_SIZE:]
+            # 轮询步长用最后快照步长（生产口径：轮询到的训练步长与快照同源），
+            # 使实时停滞状态与离线窗口逐点对齐
+            last_snap_ts = float(snaps["timesteps"].iloc[snap_ptr - 1]) if snap_ptr else ts_i
             seed_payload = build_eval_seed(
-                task, seed, ts_i, float(eval_row["mean_reward"]), history,
+                task, seed, last_snap_ts, float(eval_row["mean_reward"]), history,
                 None if tb_row is None else tb_row["approx_kl"],
                 None if tb_row is None else tb_row["std"],
             )
@@ -378,20 +384,12 @@ def run_check(
                 if diff is not None and (agg["max_diff"] is None or diff > agg["max_diff"]):
                     agg["max_diff"] = diff
                     agg["max_diff_timesteps"] = ts_i
-            stall_cmp = cmp.get("stall_minutes")
-            if stall_cmp is not None and stall_cmp["passed"] is False:
-                stall_classes[classify_stall(
-                    float(off.get("stall_minutes") or 0.0),
-                    _current_stall_minutes(snaps[snaps["time"] <= t_i]),
-                    float(on.get("stall_minutes") or 0.0),
-                )] += 1
             rows.append(row)
             if section_failed:
                 failed_sections.append({
                     "index": i + 1, "timesteps": ts_i, "section_time": t_i, "details": cmp,
                 })
 
-    factor_stats["stall_minutes"]["stall_classes"] = stall_classes
     df = pd.DataFrame(rows)
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
 
@@ -420,26 +418,20 @@ def _print_summary(s: dict[str, Any]) -> None:
         maxd = "-" if agg["max_diff"] is None else f"{agg['max_diff']:.6g}"
         loc = "-" if agg["max_diff_timesteps"] is None else f"{agg['max_diff_timesteps']:.0f}"
         print(f"{factor:<22}{agg['passed']:>5}{agg['failed']:>5}{agg['na']:>5}{maxd:>13}{loc:>14}")
-    sc = stats["stall_minutes"]["stall_classes"]
-    if sc is not None:
-        print("-" * 72)
-        print("stall_minutes 语义分解: " + " / ".join(f"{k} {v}" for k, v in sc.items()))
-        print("  说明: 离线 snapshot_factors 为窗口内最大停滞(max-so-far, 持久)；")
-        print("        实时 compute_factors 为当前停滞(恢复即归零)。")
-        print("  修复方向(实时侧): 状态机增加 max-stall 跟踪以与离线规则口径一致。")
+    print("-" * 72)
+    print("口径说明（P0 修复后两侧一致）:")
+    print("  - stall_minutes = 窗口内最大停滞(max-so-far, 持久)；current_stall_minutes = 当前连续停滞(恢复归零)")
+    print("  - restart_count = 规格回退(>100k -> <10k)次数；neg_ratio_current = 最后一次重启后的当前尝试占比")
+    print("  - kl_divergent = 当前 tb 点 approx_kl 不在 (0,1]（含 NaN）；streak 按 eval 点连续计数")
+    rc = int(s.get("restart_count") or 0)
+    if rc:
+        print(f"  - 本 run 快照流检测到 {rc} 次规格回退，restart_count / neg_ratio_current 已按重启分段对齐")
     print("-" * 72)
     print("已知结构性差异(不在对比表内):")
     print("  - eval_points: 实时=len(history) or 20(封顶20)，离线=截至截面实际点数")
     print("  - value_loss_divergent: 实时恒 False(API 无 value_loss 历史)，离线可判定发散")
     print("  - completed: 实时=seed.completed(回放中 False)，离线=runs.csv 实际值")
     print("  - eval_neg_ratio 真实部署口径: 5s 轮询会稀释比值；回放按每 eval 点一次轮询，与离线同口径")
-    rc = int(s.get("restart_count") or 0)
-    if rc:
-        print(f"  - 快照流检测到 {rc} 次 run 重启(timesteps 回退): 实时状态机按设计重置")
-        print("    neg_count/poll_count/peak，与离线按完整 eval 序列计算的口径不同；")
-        print("    重启后同一 (task,seed) 的实时因子语义为\"当前训练尝试\"，离线为\"全部尝试混合\"。")
-    print("  - 修复方向: 实时 neg_ratio_recent 应取 history 尾 recent_window 点；")
-    print("    approx_kl_last 应记录窗口内最后有效值(当前点损坏时回退)，以与离线一致")
     if s["failed_sections"]:
         print("-" * 72)
         show = s["failed_sections"][:3]
