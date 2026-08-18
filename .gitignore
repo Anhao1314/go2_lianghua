@@ -5,3 +5,4 @@ data/raw/
 data/*.log
 data/.quant_last_date
 data/quant.log
+data/monitor/
