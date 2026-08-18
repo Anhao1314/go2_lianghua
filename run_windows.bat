@@ -18,6 +18,11 @@ if /i "%~1"=="--quant" (
 ) else if /i "%~1"=="--backtest" (
   ".venv\Scripts\python.exe" backtest_rules.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
   ".venv\Scripts\python.exe" backtest_engine.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+) else if /i "%~1"=="--labels" (
+  ".venv\Scripts\python.exe" label_enrichment.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+) else if /i "%~1"=="--screen" (
+  ".venv\Scripts\python.exe" label_enrichment.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+  ".venv\Scripts\python.exe" data_screening.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
 ) else (
   ".venv\Scripts\python.exe" summary.py %*
 )

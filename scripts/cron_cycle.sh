@@ -31,6 +31,11 @@ if [ ! -f "$QUANT_MARKER" ] || [ "$(cat "$QUANT_MARKER" 2>/dev/null)" != "$TODAY
   # B 方案：每日一次规则止损回测（赔率表，data/modeling/rule_backtest_*.csv/md）
   "$PY" "$REPO/backtest_rules.py" --config "$REPO/config.json" \
     >> "$REPO/data/quant.log" 2>&1 || true
+  # B 方案：标签富化 + 数据筛选（分层建模数据，screened/anomaly_archive/screening_summary）
+  "$PY" "$REPO/label_enrichment.py" --config "$REPO/config.json" \
+    >> "$REPO/data/quant.log" 2>&1 || true
+  "$PY" "$REPO/data_screening.py" --config "$REPO/config.json" \
+    >> "$REPO/data/quant.log" 2>&1 || true
   printf '%s\n' "$TODAY" > "$QUANT_MARKER"
 fi
 

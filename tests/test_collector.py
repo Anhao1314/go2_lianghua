@@ -478,6 +478,7 @@ class SchemaAndPortabilityTest(unittest.TestCase):
                 "reports",
                 "costs",
                 "labels",
+                "enriched_labels",
             },
         )
         for table, cols in SCHEMA.items():

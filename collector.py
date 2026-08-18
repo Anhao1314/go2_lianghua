@@ -304,7 +304,7 @@ def _acceptance_labels(reports_root: Path, task: str, seed: str) -> dict:
         return labels
     if len(df) and "success" in df.columns:
         success = pd.to_numeric(df["success"], errors="coerce").fillna(0).astype(bool)
-        if labels["verdict"] is None:
+        if not labels["verdict"]:
             labels["verdict"] = "pass" if bool(success.all()) else "fail"
     if labels["success_rate"] is None and "success_rate" in df.columns:
         sr = pd.to_numeric(df["success_rate"], errors="coerce").dropna()

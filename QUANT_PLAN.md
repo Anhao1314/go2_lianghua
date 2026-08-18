@@ -111,6 +111,13 @@ data/datasets/*.csv ──> factors.py（因子 + 规则 + 分级） ──> qua
   - B 方案 P1（已完成）：滚动回测框架 `backtest_engine.py`——按开始时间排序的 leave-one-future-out（训练集 = 结束时间早于目标开始时间且有标签的 run，时间不泄漏）；决策时刻 = 训练进度达 `--decision-progress`（支持 0.3,0.5,0.7 列表扫描）；插件协议 `predictor_fn(train_info, target_online, cfg) -> {stop, confidence, reason}`，内置 `rule` / `always_continue` / `always_stop`；输出 `data/modeling/backtest_YYYY-MM-DD.csv`（逐 run 决策行）与同名 `.json`（各决策进度点聚合指标）。未来 v3 模型按同一协议接入。
 - v3（预留）：概率化早停分类器与训练耗时回归器，把 R2/R3 阈值升级为模型输出。
 
+  - B 方案 标签富化 + 数据筛选（已完成）：多维标签与分层建模数据。
+    - `label_enrichment.py`：每 run 计算 7 个新标签——`training_collapsed`（峰值后跌穿 0.5×peak 且未恢复 0.8×peak、塌缩段跨度 ≥20% 观测窗口）、`best_step` / `best_step_ratio`（分母=观测窗口末 timesteps，无 eval 回退 total_steps）、`collapse_step`（首个 <0.5×peak 的点，未塌缩为 None）/ `collapse_ratio`、`stop_justified`（verdict=fail 或塌缩且 best_step_ratio<0.7 且 collapse_ratio<0.8）、`data_quality`（单向引用 data_screening.classify）；输出 `data/modeling/enriched_labels_YYYY-MM-DD.csv`（UTF-8 BOM，schema 校验）。
+    - `data_screening.py`：4 条客观筛选规则（① eval 点数≥10；② max(末 timesteps, total_steps)≥500k；③ **factors 清洗后** approx_kl_last<1.0 且 eval mean_reward 无 NaN——原始 122376 类解析异常不误杀；④ std(mean_reward)>1.0），`classify` 异常优先：rule3/4 任一失败→`anomalous`，仅 rule1/2 失败→`insufficient`，全过→`good`；输出 `screened_dataset_*.csv`（good×28 因子×富化标签）、`anomaly_archive_*.csv`（含 fail_reasons）、`screening_summary_*.md`。
+    - 全量 vs 筛选对比（防幸存者偏差）：Config A = screened 训练 + **full 测试**；Config B = full 训练 + full 测试；A 差于 B → SURVIVORSHIP BIAS WARNING；有标签样本 <10 → 标注“框架验证，不具统计显著性”。筛选=分层非删除：clean 训练、anomaly 做鲁棒性测试、full 做最终回测。
+    - 集成：`config.json` 新增 `screening` 段（9 键全可配）；`schema.py` 新增 `enriched_labels` 表；`modeling.py --screened`、`baseline.py --screened`、`run_windows.bat --labels/--screen`；cron 每日追加两模块（复用 `.quant_last_date`）。
+    - 当前数据（2026-08-18，25 runs）：good 14 / insufficient 11 / anomalous 0；塌缩 8 / 早停合理 9；balance/seed00 集成达标（collapsed=True, best_step=1900000, best_step_ratio=0.475, collapse_step=2100000, stop_justified=True, data_quality=good）；duration 对比 A（screened→full）R2=0.7526 优于 B（full→full）R2=-0.497，无幸存者偏差警告。
+
 ## 十、假设与边界
 
 - 服务训练过程管理（非投资交易），范围限定本仓库数据。

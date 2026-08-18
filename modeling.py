@@ -101,6 +101,8 @@ def main() -> None:
     parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
     parser.add_argument("--today", default=None, help="数据集日期 YYYY-MM-DD（默认今天）")
     parser.add_argument("--out", default=None, help="覆盖输出目录（默认 config.modeling_dir）")
+    parser.add_argument("--screened", action="store_true",
+                        help="生成全量数据集后追加数据筛选输出（需先运行 label_enrichment.py）")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -111,6 +113,9 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"dataset_{today}.csv"
     df.to_csv(path, index=False, encoding="utf-8-sig")
+    if args.screened:
+        import data_screening  # 函数内 import 避免循环依赖
+        data_screening.screen_outputs(cfg, today, out_dir)
 
     x_cols = [c for c in df.columns if c not in ("task", "seed") + tuple(Y_COLUMNS)]
     n_verdict = int(df["verdict"].notna().sum())

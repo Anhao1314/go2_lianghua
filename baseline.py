@@ -42,18 +42,21 @@ LEAKED_FEATURES: dict[str, tuple[str, ...]] = {
 }
 
 
-def load_latest_dataset(cfg: dict, dataset: str | None) -> tuple[pd.DataFrame, pathlib.Path]:
+def load_latest_dataset(
+    cfg: dict, dataset: str | None, screened: bool = False
+) -> tuple[pd.DataFrame, pathlib.Path]:
     out_dir = resolve_out_dir(cfg, None)
     if dataset:
         path = pathlib.Path(dataset)
         if not path.exists():
             raise SystemExit(f"数据集不存在: {path}")
     else:
-        candidates = sorted(out_dir.glob("dataset_*.csv"))
+        pattern = "screened_dataset_*.csv" if screened else "dataset_*.csv"
+        hint = ("screened_dataset_*.csv（请先运行 modeling.py --screened）" if screened
+                else "dataset_*.csv（请先运行 modeling.py）")
+        candidates = sorted(out_dir.glob(pattern))
         if not candidates:
-            raise SystemExit(
-                f"未找到数据集: {out_dir / 'dataset_*.csv'}（请先运行 modeling.py）"
-            )
+            raise SystemExit(f"未找到数据集: {out_dir / pattern}（{hint}）")
         path = candidates[-1]
     return pd.read_csv(path), path
 
@@ -253,15 +256,18 @@ def main() -> None:
     parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
     parser.add_argument("--dataset", default=None, help="指定数据集 CSV（默认最新）")
     parser.add_argument("--out", default=None, help="覆盖报告目录（默认 config.modeling_dir）")
+    parser.add_argument("--screened", action="store_true",
+                        help="使用筛选数据集（screened_dataset_*.csv）")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
-    df, dataset_path = load_latest_dataset(cfg, args.dataset)
+    df, dataset_path = load_latest_dataset(cfg, args.dataset, screened=args.screened)
     res = run_baselines(df)
 
     out_dir = resolve_out_dir(cfg, args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    md_path = out_dir / f"baseline_{_Date.today().isoformat()}.md"
+    suffix = "_screened" if args.screened else ""
+    md_path = out_dir / f"baseline_{_Date.today().isoformat()}{suffix}.md"
     md_path.write_text(render_markdown(res, dataset_path), encoding="utf-8")
 
     print(f"[go2w-quant] 基线模型：{res['n_runs']} runs × {res['n_features']} 特征（{dataset_path.name}）")

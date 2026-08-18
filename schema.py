@@ -105,6 +105,23 @@ SCHEMA: dict[str, list[tuple[str, str, str]]] = {
         ("label_source", "str", "auto=采集自动 / manual=人工锁定"),
         ("label_updated_at", "str", "标签更新时间 YYYY-MM-DD HH:MM:SS"),
     ],
+    "enriched_labels": [
+        ("task", "str", "任务名"),
+        ("seed", "str", "seed 编号"),
+        ("verdict", "str", "验收结论 pass/fail（来自 runs，人工可修正）"),
+        ("success_rate", "float", "整体成功率"),
+        ("duration_seconds", "float", "训练时长秒"),
+        ("training_collapsed", "bool", "训练是否塌缩（峰值后下跌>50%且未恢复）"),
+        ("best_step", "int", "最佳评估点 timesteps（全局最大奖励）"),
+        ("best_step_ratio", "float", "最佳点占观测窗口比例（best_step/last_eval）"),
+        ("collapse_step", "float", "塌缩起点 timesteps（首个 reward<0.5*peak；未塌缩为 NaN）"),
+        ("collapse_ratio", "float", "塌缩起点占观测窗口比例（未塌缩为 NaN）"),
+        ("stop_justified", "bool", "早停是否合理（fail 或塌缩且早停窗口内）"),
+        ("data_quality", "str", "数据质量：good / insufficient / anomalous"),
+        ("peak_reward", "float", "评估奖励峰值"),
+        ("final_reward", "float", "评估奖励末值"),
+        ("eval_point_count", "int", "评估点数"),
+    ],
 }
 
 # 幂等去重键：重复运行 collect 后行数不变
@@ -116,6 +133,7 @@ KEY_COLUMNS: dict[str, list[str]] = {
     "reports": ["task", "seed", "label"],
     "costs": ["date", "thread_id"],
     "labels": ["task", "seed"],
+    "enriched_labels": ["task", "seed"],
 }
 
 
