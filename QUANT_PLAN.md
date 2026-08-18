@@ -118,6 +118,17 @@ data/datasets/*.csv ──> factors.py（因子 + 规则 + 分级） ──> qua
     - 集成：`config.json` 新增 `screening` 段（9 键全可配）；`schema.py` 新增 `enriched_labels` 表；`modeling.py --screened`、`baseline.py --screened`、`run_windows.bat --labels/--screen`；cron 每日追加两模块（复用 `.quant_last_date`）。
     - 当前数据（2026-08-18，25 runs）：good 14 / insufficient 11 / anomalous 0；塌缩 8 / 早停合理 9；balance/seed00 集成达标（collapsed=True, best_step=1900000, best_step_ratio=0.475, collapse_step=2100000, stop_justified=True, data_quality=good）；duration 对比 A（screened→full）R2=0.7526 优于 B（full→full）R2=-0.497，无幸存者偏差警告。
 
+  - 公式审计修复（已完成，2026-08-18）：
+    - P0：`data_screening.py` Config A 原为 screened 训练 + full 测试且训练/测试重叠，R2=0.7526 为虚高；
+      改为逐样本留一（LOO）后 A R2=-2.4958（B=-0.627），正确触发 SURVIVORSHIP BIAS WARNING。
+    - P1：新增 `eval_neg_ratio` / `eval_neg_ratio_recent`（负奖励占比，recent>50% → R2 stop，整体>30% → R1）；
+      `eval_slope_per_1e6` 由首末差分改为最近 5 点最小二乘（config `risk.eval_slope.window`）；
+      激活孤儿因子 `eval_std_recent`（<0.01 且 eval 点数≥5 → R1 std_reward_collapse，config `risk.std_reward.collapse`）；
+      补齐歧义因子 docstring（ev_neg_streak / reward_peak_ratio / eval_std_recent，不重命名）。
+    - P2：新建 `MATH_LIBRARY.md`——公式与口径权威库（审计记录、30 因子公式总表、关键公式、阈值总表、命名澄清）。
+    - 当前数据（2026-08-18）：balance/seed00 触发 R2/neg_ratio（recent=100%）决策仍为 stop；
+      rule_backtest 赔率表新增 R2/neg_ratio（4 触发）与 R2/std_reward_collapse（1 触发）。
+
 ## 十、假设与边界
 
 - 服务训练过程管理（非投资交易），范围限定本仓库数据。

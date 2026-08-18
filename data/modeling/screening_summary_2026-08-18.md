@@ -31,18 +31,24 @@
 
 ## 四、全量 vs 筛选回测对比（测试集 = 全量）
 
+- Config A 采用逐样本留一（LOO）：任一测试样本不在自身训练折内，无训练/测试重叠（修复虚高 R2）。
+
 
 ### duration_seconds 回归
 
 | 配置 | 训练集 | 测试集 | R2 | MAE | 样本(n_train/n_test) |
 |---|---|---|---|---|---|
-| A | screened | **full** | 0.7526 | 47429.0 | 7/17 |
-| B | full | **full** | -0.497 | 107038.8 | 17/17 |
+| A | screened | **full**（LOO 无泄漏） | -2.4958 | 155241.2 | 7/17 |
+| B | full | **full** | -0.627 | 102361.2 | 17/17 |
 
 ### verdict 分类
 
-- A（screened 训练，full 测试）：样本不足未训练（训练 pass/fail = 1/2，测试 n=3）
+- A（screened 训练，full 测试 LOO 无泄漏）：样本不足未训练（训练 pass/fail = 1/2，测试 n=0）
 - B（full 训练，full 测试 LOO）：样本不足未训练（pass/fail = 1/2）
+
+## ⚠️ SURVIVORSHIP BIAS WARNING
+
+筛选训练（A）在 full 测试集上的表现差于全量训练（B）：筛选可能引入幸存者偏差，模型不应只在 clean 数据上评估。
 
 ## 五、原则
 

@@ -48,6 +48,57 @@ class FactorComputeTest(unittest.TestCase):
         f = factors.eval_factors(df)
         self.assertAlmostEqual(f["eval_slope_per_1e6"], 100.0, places=2)
 
+    def test_eval_neg_ratio_basic(self):
+        df = frame("eval_points", [
+            ("t", "s", 100000, 10.0, 0.1, 100.0),
+            ("t", "s", 200000, 20.0, 0.1, 100.0),
+            ("t", "s", 300000, -5.0, 0.1, 100.0),
+            ("t", "s", 400000, -10.0, 0.1, 100.0),
+            ("t", "s", 500000, 15.0, 0.1, 100.0),
+        ])
+        f = factors.eval_factors(df)
+        self.assertAlmostEqual(f["eval_neg_ratio"], 0.4, places=4)
+        self.assertAlmostEqual(f["eval_neg_ratio_recent"], 0.4, places=4)
+
+    def test_eval_neg_ratio_all_positive(self):
+        df = frame("eval_points", [
+            ("t", "s", 100000 + i * 100000, float(10 + i), 0.1, 100.0)
+            for i in range(5)
+        ])
+        f = factors.eval_factors(df)
+        self.assertEqual(f["eval_neg_ratio"], 0.0)
+        self.assertEqual(f["eval_neg_ratio_recent"], 0.0)
+
+    def test_eval_neg_ratio_all_negative(self):
+        df = frame("eval_points", [
+            ("t", "s", 100000 + i * 100000, float(-(i + 1)), 0.1, 100.0)
+            for i in range(5)
+        ])
+        f = factors.eval_factors(df)
+        self.assertEqual(f["eval_neg_ratio"], 1.0)
+        self.assertEqual(f["eval_neg_ratio_recent"], 1.0)
+
+    def test_eval_slope_ls_linear(self):
+        df = frame("eval_points", [
+            ("t", "s", i, float(10 + 10 * i), 0.1, 100.0) for i in range(5)
+        ])
+        f = factors.eval_factors(df)
+        # 每步 +10，最小二乘斜率 x1e6 = 10*1e6
+        self.assertAlmostEqual(f["eval_slope_per_1e6"], 10000000.0, places=0)
+
+    def test_eval_slope_noisy_less_extreme_than_first_last(self):
+        df = frame("eval_points", [
+            ("t", "s", 0, 10.0, 0.1, 100.0),
+            ("t", "s", 1, 100.0, 0.1, 100.0),
+            ("t", "s", 2, 20.0, 0.1, 100.0),
+            ("t", "s", 3, 30.0, 0.1, 100.0),
+            ("t", "s", 4, 40.0, 0.1, 100.0),
+        ])
+        f = factors.eval_factors(df)
+        ls = abs(f["eval_slope_per_1e6"])
+        first_last = abs((40.0 - 10.0) / 4.0 * 1e6)
+        self.assertLess(ls, first_last)
+
     def test_eval_drawdown_clipped_when_negative_tail(self):
         # 末值为负：旧实现会给出 (110-(-18.8))/110=1.17 这类 >1 的伪回撤
         df = frame("eval_points", [
@@ -151,6 +202,40 @@ class RiskRuleTest(unittest.TestCase):
         self.assertEqual(factors.run_risk_items({"std_last": 0.01}, cfg())[0].level, "R1")
         self.assertEqual(factors.run_risk_items({"std_last": 0.9}, cfg()), [])
         self.assertEqual(factors.run_risk_items({"std_last": 2.0}, cfg())[0].level, "R2")
+
+    def test_neg_ratio_rules(self):
+        # 整体 >0.3 -> R1；recent >0.5 -> R2（优先）
+        items = factors.run_risk_items(
+            {"eval_neg_ratio": 0.4, "eval_neg_ratio_recent": 0.2}, cfg())
+        self.assertEqual([i.level for i in items], ["R1"])
+        self.assertEqual(items[0].factor, "neg_ratio")
+        items = factors.run_risk_items(
+            {"eval_neg_ratio": 0.2, "eval_neg_ratio_recent": 0.6}, cfg())
+        self.assertEqual([i.level for i in items], ["R2"])
+        self.assertEqual(items[0].factor, "neg_ratio")
+        items = factors.run_risk_items(
+            {"eval_neg_ratio": 0.2, "eval_neg_ratio_recent": 0.4}, cfg())
+        self.assertEqual(items, [])
+        items = factors.run_risk_items(
+            {"eval_neg_ratio": 0.6, "eval_neg_ratio_recent": 0.6}, cfg())
+        self.assertEqual(items[0].level, "R2")
+
+    def test_std_reward_collapse_rule(self):
+        items = factors.run_risk_items(
+            {"eval_points": 5, "eval_std_recent": 0.005}, cfg())
+        self.assertEqual([i.level for i in items], ["R1"])
+        self.assertEqual(items[0].factor, "std_reward_collapse")
+        self.assertEqual(factors.run_risk_items(
+            {"eval_points": 5, "eval_std_recent": 0.1}, cfg()), [])
+        # 评估点数不足 5 不判
+        self.assertEqual(factors.run_risk_items(
+            {"eval_points": 4, "eval_std_recent": 0.005}, cfg()), [])
+
+    def test_decide_neg_ratio_stop(self):
+        items = [factors.RiskItem("R2", "eval_points", "neg_ratio", "neg")]
+        decision, msgs = factors.decide({"eval_drawdown": 0.0}, items, cfg())
+        self.assertEqual(decision, "stop")
+        self.assertEqual(msgs, ["neg"])
 
     def test_value_loss_divergence(self):
         vl_cfg = cfg()["risk"]["value_loss"]
@@ -383,6 +468,24 @@ class ComputeAllTest(unittest.TestCase):
         self.assertEqual(result.runs[0].level, "R2")
         self.assertEqual(result.runs[0].decision, "tune")
         self.assertEqual(result.runs[-1].task, "a")
+
+
+class BalanceFactorsIntegrationTest(unittest.TestCase):
+    """balance/seed00 真实数据集成：负奖励占比/斜率/风险项（数据随仓库入库，稳定）。"""
+
+    def test_balance_seed00_factors(self):
+        import quant
+        tables = quant.load_tables(cfg())
+        f = factors.run_factors("balance", "seed00", tables, cfg())
+        self.assertAlmostEqual(f["eval_neg_ratio"], 0.4625, places=3)
+        self.assertEqual(f["eval_neg_ratio_recent"], 1.0)
+        self.assertGreater(f["eval_std_recent"], 0.01)  # 0.0219，不触发塌缩
+        self.assertLess(f["eval_slope_per_1e6"], 0.0)
+        risks = factors.run_risk_items(f, cfg())
+        neg = [i for i in risks if i.factor == "neg_ratio"]
+        self.assertTrue(any(i.level == "R2" for i in neg), neg)
+        decision, _ = factors.decide(f, risks, cfg())
+        self.assertEqual(decision, "stop")
 
 
 if __name__ == "__main__":

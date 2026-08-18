@@ -15,20 +15,22 @@
 | R2 | approx_kl | 3 | 0 | 1 | 2 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 3986.5 | 3211.7 | 3986.5 | 133.82 | actual:1;step_rate:1;task_mean:1 |
 | R2 | cpu | 4 | 1 | 1 | 2 | 0.5 | 1 | 0.25 | 0.5 | 3986.5 | 8118.9 | 1746.6 | 338.29 | actual:3;step_rate:1 |
 | R2 | drawdown | 7 | 1 | 2 | 4 | 0.6667 | 1 | 0.1429 | 0.2857 | 2542.7 | 5603.3 | 1554.1 | 233.47 | actual:4;step_rate:2;task_mean:1 |
+| R2 | neg_ratio | 4 | 0 | 1 | 3 | 1.0 | 0 | N/A (no pass samples) | 0.25 | 1098.8 | 8544.4 | 1098.8 | 356.02 | actual:2;step_rate:1;task_mean:1 |
 | R2 | stagnation | 1 | 0 | 0 | 1 | — | 0 | N/A (no pass samples) | 0.0 | — | 72.1 | — | 3.0 | step_rate:1 |
 | R2 | stall | 5 | 1 | 1 | 3 | 0.5 | 1 | 0.2 | 0.4 | 3986.5 | 6509.6 | 1795.9 | 271.23 | actual:3;step_rate:2 |
 | R2 | std | 2 | 1 | 0 | 1 | 0.0 | 1 | 0.5 | 1.0 | — | 528.1 | — | 22.0 | actual:2 |
+| R2 | std_reward_collapse | 1 | 0 | 0 | 1 | — | 0 | N/A (no pass samples) | 1.0 | — | 69.4 | — | 2.89 | actual:1 |
 
 ## 三、逐 run 首次止损明细
 
 | task | seed | 级别 | 触发因子 | 标签 | fail_score | 代理pass | 节省min | 节省估算(元) | t_end 方法 | 触发证据 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | balance | seed00 | R2 | cpu;drawdown;stall;std | pass | 0.2703 | False | 986.7 | 41.11 | actual | 评估奖励较峰值回撤 100.0%（阈值 30%） | 策略输出标准差 0.0095（<0.05），疑似塌缩 | CPU 使用率峰值 100%（>95%） | timesteps 连续 359 分钟无增长（>=60） |
-| full_chain | seed00 | R2 | cpu;drawdown;stall;std | unknown | 0.0735 | False | 69.4 | 2.89 | actual | 评估奖励较峰值回撤 100.0%（阈值 30%） | 策略输出标准差 0.0333（<0.05），疑似塌缩 | CPU 使用率峰值 100%（>95%） | timesteps 连续 319 分钟无增长（>=60） |
-| traverse | seed00 | R2 | approx_kl;drawdown | unknown | 0.3978 | False | 5576.5 | 232.36 | task_mean | 评估奖励较峰值回撤 46.0%（阈值 30%） | approx_kl=0.0595（>0.05） |
+| full_chain | seed00 | R2 | cpu;drawdown;neg_ratio;stall;std;std_reward_collapse | unknown | 0.0735 | False | 69.4 | 2.89 | actual | 评估奖励较峰值回撤 100.0%（阈值 30%） | 近期评估奖励负值占比 100%（>50%），疑似策略崩溃 | 策略输出标准差 0.0（<0.01），疑似确定性退化 | 策略输出标准差 0.0333（<0.05），疑似塌缩 | CPU 使用率峰值 100%（>95%） | timesteps 连续 319 分钟无增 |
+| traverse | seed00 | R2 | approx_kl;drawdown;neg_ratio | unknown | 0.3978 | False | 5576.5 | 232.36 | task_mean | 评估奖励较峰值回撤 46.0%（阈值 30%） | 评估奖励负值占比 50%（>30%） | approx_kl=0.0595（>0.05） |
 | traverse | seed01 | R2 | approx_kl;cpu;drawdown;stall | fail | 0.7764 | False | 3986.5 | 166.11 | actual | 评估奖励较峰值回撤 63.9%（阈值 30%） | approx_kl=0.1178（>0.1） | CPU 使用率峰值 100%（>95%） | timesteps 连续 134 分钟无增长（>=60） |
-| traverse_curve | seed00 | R2 | drawdown | fail | 0.55 | False | 1098.8 | 45.78 | actual | 评估奖励较峰值回撤 100.0%（阈值 30%） |
-| traverse_flat_slope | seed00 | R2 | cpu;drawdown;stall | unknown | 0.3487 | False | 27433.1 | 1143.04 | step_rate | 评估奖励较峰值回撤 100.0%（阈值 30%） | CPU 使用率峰值 100%（>95%） | timesteps 连续 1044 分钟无增长（>=60） |
+| traverse_curve | seed00 | R2 | drawdown;neg_ratio | fail | 0.55 | False | 1098.8 | 45.78 | actual | 评估奖励较峰值回撤 100.0%（阈值 30%） | 评估奖励负值占比 50%（>30%） |
+| traverse_flat_slope | seed00 | R2 | cpu;drawdown;neg_ratio;stall | unknown | 0.3487 | False | 27433.1 | 1143.04 | step_rate | 评估奖励较峰值回撤 100.0%（阈值 30%） | 评估奖励负值占比 50%（>30%） | CPU 使用率峰值 100%（>95%） | timesteps 连续 1044 分钟无增长（>=60） |
 | traverse_slope | seed00 | R2 | approx_kl;drawdown;stagnation;stall | unknown | 0.6579 | False | 72.1 | 3.0 | step_rate | 评估奖励较峰值回撤 100.0%（阈值 30%） | 训练进度 61% 但奖励仅为峰值的 -8%（<60%），疑似停滞 | approx_kl=0.3057（>0.1） | timesteps 连续 67 分钟无增长（>=60） |
 
 ## 四、首次 R2/R3 预警统计（不产生止损）

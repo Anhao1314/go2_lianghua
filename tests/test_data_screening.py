@@ -150,5 +150,53 @@ class ScreenRunTest(unittest.TestCase):
         self.assertIn("rule1", out["fail_reasons"])
 
 
+class ConfigALooTest(unittest.TestCase):
+    """Config A 逐样本留一（LOO）：无训练/测试重叠。"""
+
+    @staticmethod
+    def _df(names: str) -> pd.DataFrame:
+        rows = []
+        for i, name in enumerate(names):
+            rows.append({
+                "task": "t", "seed": f"s{name}",
+                "duration_seconds": float(1000 + i),
+                "verdict": "pass", "f1": float(i), "f2": float(2 * i),
+            })
+        return pd.DataFrame(rows)
+
+    def test_config_a_splits_no_leakage(self):
+        full = self._df("ABCDEF")
+        screened = self._df("ABCD")
+        splits = ds._config_a_splits(full, screened)
+        self.assertEqual(len(splits), 6)
+        screened_keys = {("t", "sA"), ("t", "sB"), ("t", "sC"), ("t", "sD")}
+        for key, train_keys in splits:
+            self.assertNotIn(key, train_keys, f"leak: {key}")
+            if key in screened_keys:
+                self.assertEqual(train_keys, screened_keys - {key})
+            else:
+                self.assertEqual(train_keys, screened_keys)
+
+    def test_regression_a_loo_aggregate(self):
+        full = self._df("ABCDEF")
+        screened = self._df("ABCD")
+        out = ds._regression_a(screened, full, "duration_seconds")
+        self.assertEqual(out["status"], "ok")
+        self.assertEqual(out["n_train"], 4)
+        self.assertEqual(out["n_test"], 6)
+        self.assertIn("r2", out)
+        self.assertIn("mae", out)
+
+    def test_regression_a_insufficient_when_few_labels(self):
+        full = pd.DataFrame({
+            "task": ["t", "t"], "seed": ["sA", "sB"],
+            "duration_seconds": [1000.0, None],
+            "verdict": ["pass", "fail"], "f1": [0.0, 1.0],
+        })
+        screened = full.copy()
+        out = ds._regression_a(screened, full, "duration_seconds")
+        self.assertEqual(out["status"], "insufficient")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -45,6 +45,17 @@
       "progress": 0.6,
       "reward_ratio": 0.6
     },
+    "eval_slope": {
+      "window": 5
+    },
+    "neg_ratio": {
+      "watch": 0.3,
+      "severe": 0.5,
+      "recent_window": 5
+    },
+    "std_reward": {
+      "collapse": 0.01
+    },
     "std": {
       "collapse": 0.05,
       "explode": 1.5

@@ -17,7 +17,8 @@
 classify（修正 2：异常优先）：rule3/4 任一失败 -> anomalous（即使 1/2 也失败）；
 仅 rule1/2 失败 -> insufficient；全过 -> good。
 
-回测对比（修正 3）：Config A = screened 训练 + full 测试；
+回测对比（修正 3）：Config A = screened 训练 + full 测试（逐样本 LOO，
+任一测试样本不在自身训练折内，修复训练/测试重叠导致的虚高 R2）；
 Config B = full 训练 + full 测试（baseline LOO）；A 差于 B -> 幸存者偏差警告；
 有标签样本 <10 -> 标注"框架验证，不具统计显著性"。
 
@@ -176,55 +177,118 @@ def _to_float(v: Any) -> float | None:
         return None
 
 
+def _config_a_splits(
+    test_df: pd.DataFrame, screened_df: pd.DataFrame
+) -> list[tuple[tuple[str, str], set[tuple[str, str]]]]:
+    """Config A 逐样本留一折：测试样本 i 的训练集 = screened 去掉 {i}（若 i 在 screened 中），
+    否则训练集 = 全部 screened。保证任何测试样本都不在自身训练折内（无泄漏）。"""
+    screened_keys = {
+        (str(a), str(b)) for a, b in zip(screened_df["task"], screened_df["seed"])
+    }
+    splits: list[tuple[tuple[str, str], set[tuple[str, str]]]] = []
+    for _, row in test_df.iterrows():
+        key = (str(row["task"]), str(row["seed"]))
+        train_keys = screened_keys - {key} if key in screened_keys else set(screened_keys)
+        splits.append((key, train_keys))
+    return splits
+
+
 def _regression_a(train_df: pd.DataFrame, test_df: pd.DataFrame, target: str) -> dict:
-    """Config A：screened 训练线性回归，在 full 测试集上评估。"""
+    """Config A：screened 训练线性回归，full 测试（逐样本 LOO，无训练/测试重叠）。
+
+    对 full 中每个样本 i：i 在 screened 中则训练集 = screened 去掉 {i}，否则 = 全部 screened；
+    逐折独立做中位数填充与标准化后仅预测 i，汇总全部预测算 R2/MAE。
+    训练折有效 y <3 的折跳过；可评估折 <2 时视为样本不足。
+    """
     leaked = baseline.LEAKED_FEATURES.get(target, ())
     x_cols = [c for c in baseline.feature_matrix(train_df).columns if c not in leaked]
     common = [c for c in x_cols if c in test_df.columns]
-    y_tr = pd.to_numeric(train_df[target], errors="coerce")
     y_te = pd.to_numeric(test_df[target], errors="coerce")
-    tr_ok = y_tr.notna()
     te_ok = y_te.notna()
-    if not len(common) or int(tr_ok.sum()) < 3 or int(te_ok.sum()) < 3:
-        return {"status": "insufficient", "n_train": int(tr_ok.sum()),
-                "n_test": int(te_ok.sum())}
-    Xtr = train_df.loc[tr_ok, common].apply(pd.to_numeric, errors="coerce")
-    Xte = test_df.loc[te_ok, common].apply(pd.to_numeric, errors="coerce")
-    med = Xtr.median()
-    scaler = StandardScaler().fit(Xtr.fillna(med))
-    model = LinearRegression().fit(scaler.transform(Xtr.fillna(med)), y_tr[tr_ok])
-    yhat = model.predict(scaler.transform(Xte.fillna(med)))
-    y_true = y_te[te_ok]
+    if not len(common) or int(te_ok.sum()) < 3:
+        return {"status": "insufficient", "n_train": 0, "n_test": int(te_ok.sum())}
+    valid_test = test_df.loc[te_ok]
+    y_tr_all = pd.to_numeric(train_df[target], errors="coerce")
+    n_pool = int(y_tr_all.notna().sum())
+    y_true: list[float] = []
+    y_pred: list[float] = []
+    for (test_key, train_keys), (idx, row) in zip(
+            _config_a_splits(valid_test, train_df), valid_test.iterrows()):
+        mask = [(str(a), str(b)) in train_keys
+                for a, b in zip(train_df["task"], train_df["seed"])]
+        fold = train_df.loc[mask]
+        y_tr = pd.to_numeric(fold[target], errors="coerce")
+        tr_ok = y_tr.notna()
+        if int(tr_ok.sum()) < 3:
+            continue
+        Xtr = fold.loc[tr_ok, common].apply(pd.to_numeric, errors="coerce")
+        med = Xtr.median()
+        cols = [c for c in Xtr.columns if pd.notna(med.get(c))]
+        if not cols:
+            continue
+        filled = Xtr.loc[:, cols].fillna(med[cols]).to_numpy()
+        scaler = StandardScaler().fit(filled)
+        model = LinearRegression().fit(scaler.transform(filled), y_tr[tr_ok])
+        xte = row[cols].apply(pd.to_numeric, errors="coerce").fillna(med[cols])
+        y_true.append(float(y_te.loc[idx]))
+        y_pred.append(float(model.predict(
+            scaler.transform(xte.to_numpy().reshape(1, -1)))[0]))
+    if len(y_true) < 2:
+        return {"status": "insufficient", "n_train": n_pool, "n_test": len(y_true)}
     return {
         "status": "ok",
-        "r2": round(float(r2_score(y_true, yhat)), 4),
-        "mae": round(float(mean_absolute_error(y_true, yhat)), 1),
-        "n_train": int(tr_ok.sum()),
-        "n_test": int(te_ok.sum()),
+        "r2": round(float(r2_score(y_true, y_pred)), 4),
+        "mae": round(float(mean_absolute_error(y_true, y_pred)), 1),
+        "n_train": n_pool,
+        "n_test": len(y_true),
     }
 
 
 def _verdict_a(train_df: pd.DataFrame, test_df: pd.DataFrame) -> dict:
-    """Config A：screened 训练逻辑回归（正负样本各 >=2），full 测试。"""
-    y_tr = train_df["verdict"].map({"pass": 1, "fail": 0}).dropna()
+    """Config A：screened 训练逻辑回归，full 测试（逐样本 LOO，无训练/测试重叠）。
+
+    折内门禁：训练标签 >=4 且正负样本各 >=2，不满足则跳过该折；
+    可评估折 <2 时视为样本不足。
+    """
     y_te = test_df["verdict"].map({"pass": 1, "fail": 0}).dropna()
-    n_pos = int((y_tr == 1).sum())
-    n_neg = int((y_tr == 0).sum())
-    if len(y_tr) < 4 or min(n_pos, n_neg) < 2 or len(y_te) < 2:
-        return {"status": "insufficient", "n_train": int(len(y_tr)),
+    y_tr_all = train_df["verdict"].map({"pass": 1, "fail": 0}).dropna()
+    n_pos = int((y_tr_all == 1).sum())
+    n_neg = int((y_tr_all == 0).sum())
+    if len(y_te) < 2:
+        return {"status": "insufficient", "n_train": int(len(y_tr_all)),
                 "n_test": int(len(y_te)), "n_pos": n_pos, "n_neg": n_neg}
     x_cols = [c for c in baseline.feature_matrix(train_df).columns]
     common = [c for c in x_cols if c in test_df.columns and c in train_df.columns]
     if not common:
-        return {"status": "insufficient", "n_train": int(len(y_tr)),
+        return {"status": "insufficient", "n_train": int(len(y_tr_all)),
                 "n_test": int(len(y_te)), "n_pos": n_pos, "n_neg": n_neg}
-    Xtr = train_df.loc[y_tr.index, common].apply(pd.to_numeric, errors="coerce").fillna(0)
-    Xte = test_df.loc[y_te.index, common].apply(pd.to_numeric, errors="coerce").fillna(0)
-    scaler = StandardScaler().fit(Xtr)
-    model = LogisticRegression(max_iter=1000).fit(scaler.transform(Xtr), y_tr)
-    acc = float(model.score(scaler.transform(Xte), y_te))
+    valid_test = test_df.loc[y_te.index]
+    y_true: list[int] = []
+    y_pred: list[int] = []
+    for (test_key, train_keys), (idx, row) in zip(
+            _config_a_splits(valid_test, train_df), valid_test.iterrows()):
+        mask = [(str(a), str(b)) in train_keys
+                for a, b in zip(train_df["task"], train_df["seed"])]
+        fold = train_df.loc[mask]
+        y_tr = fold["verdict"].map({"pass": 1, "fail": 0}).dropna()
+        n_pos_f = int((y_tr == 1).sum())
+        n_neg_f = int((y_tr == 0).sum())
+        if len(y_tr) < 4 or min(n_pos_f, n_neg_f) < 2:
+            continue
+        Xtr = fold.loc[y_tr.index, common].apply(
+            pd.to_numeric, errors="coerce").fillna(0).to_numpy()
+        scaler = StandardScaler().fit(Xtr)
+        model = LogisticRegression(max_iter=1000).fit(scaler.transform(Xtr), y_tr)
+        xte = row[common].apply(pd.to_numeric, errors="coerce").fillna(0)
+        y_true.append(int(y_te.loc[idx]))
+        y_pred.append(int(model.predict(
+            scaler.transform(xte.to_numpy().reshape(1, -1)))[0]))
+    if len(y_true) < 2:
+        return {"status": "insufficient", "n_train": int(len(y_tr_all)),
+                "n_test": len(y_true), "n_pos": n_pos, "n_neg": n_neg}
+    acc = sum(a == b for a, b in zip(y_true, y_pred)) / len(y_true)
     return {"status": "ok", "accuracy": round(acc, 4),
-            "n_train": int(len(y_tr)), "n_test": int(len(y_te)),
+            "n_train": int(len(y_tr_all)), "n_test": len(y_true),
             "n_pos": n_pos, "n_neg": n_neg}
 
 
@@ -347,6 +411,9 @@ def render_summary(
     lines.append("")
     lines.append("## 四、全量 vs 筛选回测对比（测试集 = 全量）")
     lines.append("")
+    lines.append("- Config A 采用逐样本留一（LOO）：任一测试样本不在自身训练折内，"
+                 "无训练/测试重叠（修复虚高 R2）。")
+    lines.append("")
     if not compare["significant"]:
         lines.append("> ⚠️ 有标签样本不足（n<10），以下对比仅作框架验证，不具统计显著性。")
     lines.append("")
@@ -355,7 +422,7 @@ def render_summary(
     lines.append("| 配置 | 训练集 | 测试集 | R2 | MAE | 样本(n_train/n_test) |")
     lines.append("|---|---|---|---|---|---|")
     a, b = compare["duration"]["A"], compare["duration"]["B"]
-    lines.append("| A | screened | **full** | {} | {} | {} |".format(
+    lines.append("| A | screened | **full**（LOO 无泄漏） | {} | {} | {} |".format(
         a.get("r2", "—") if a["status"] == "ok" else "未训练",
         a.get("mae", "—") if a["status"] == "ok" else "",
         f"{a['n_train']}/{a['n_test']}" if a["status"] == "ok" else
@@ -368,7 +435,7 @@ def render_summary(
     lines.append("### verdict 分类")
     lines.append("")
     va, vb = compare["verdict"]["A"], compare["verdict"]["B"]
-    lines.append(f"- A（screened 训练，full 测试）："
+    lines.append(f"- A（screened 训练，full 测试 LOO 无泄漏）："
                  f"{'accuracy ' + str(va['accuracy']) if va['status'] == 'ok' else '样本不足未训练'}"
                  f"（训练 pass/fail = {va['n_pos']}/{va['n_neg']}，测试 n={va['n_test']}）")
     lines.append(f"- B（full 训练，full 测试 LOO）："
@@ -452,12 +519,12 @@ def screen_outputs(
           f"anomalous={int(counts.get('anomalous', 0))}")
     c = compare
     a_d, b_d = c["duration"]["A"], c["duration"]["B"]
-    print(f"  duration A(screened→full): "
+    print(f"  duration A(screened→full LOO): "
           f"{'R2 ' + str(a_d['r2']) if a_d['status'] == 'ok' else '未训练'} | "
           f"B(full→full): "
           f"{'R2 ' + str(b_d['r2']) if b_d['status'] == 'ok' else '未训练'}")
     if c["survivorship_warning"]:
-        print("  ⚠️ SURVIVORSHIP BIAS WARNING: 筛选训练在 full 测试上差于全量训练")
+        print("  [!] SURVIVORSHIP BIAS WARNING: 筛选训练在 full 测试上差于全量训练")
     if not c["significant"]:
         print("  注：有标签样本 <10，对比仅框架验证，不具统计显著性")
     print(f"  输出: {screened_path.name} / {archive_path.name} / {summary_path.name}")

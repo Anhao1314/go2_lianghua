@@ -71,7 +71,8 @@ def _fmt(value: object) -> str:
 def _factor_line(factors: dict) -> str:
     keys = [
         "eval_points", "eval_last_timesteps", "eval_last_reward", "eval_peak_reward",
-        "eval_drawdown", "eval_slope_per_1e6", "eval_std_recent", "progress_ratio",
+        "eval_drawdown", "eval_slope_per_1e6", "eval_std_recent",
+        "eval_neg_ratio", "eval_neg_ratio_recent", "progress_ratio",
         "reward_peak_ratio", "approx_kl_last", "std_last", "ev_neg_streak",
         "value_loss_divergent", "report_rows", "verdict_fail_ratio", "success_rate_mean",
         "max_dev_max", "min_clear_min", "falls_mean", "nan_count",

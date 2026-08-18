@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from datetime import date as _Date, datetime as _DateTime
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 RISK_LEVELS = ("R0", "R1", "R2", "R3")
@@ -171,8 +172,23 @@ def _value_loss_divergent(vl: pd.Series, window: int, rise_points: int, mult: fl
 # 因子层：六类因子
 # --------------------------------------------------------------------------
 
-def eval_factors(df: pd.DataFrame) -> dict[str, Any]:
-    """收敛/稳定类因子（eval_points：每 50k 步评估）。"""
+def eval_factors(df: pd.DataFrame, slope_window: int = 5, recent_window: int = 5) -> dict[str, Any]:
+    """收敛/稳定类因子（eval_points：每 50k 步评估）。
+
+    因子字典（公式与口径）：
+    - eval_points: 评估点总数
+    - eval_last_timesteps: 最后一个评估点的 timesteps
+    - eval_last_reward / eval_peak_reward: 末值与峰值 mean_reward
+    - eval_drawdown: min(1, (peak-last)/peak)，裁剪到 [0,1]；峰值<=0 时取 0
+    - reward_peak_ratio: 最终奖励/峰值奖励，可负可 >1（非峰值占比）
+    - eval_slope_per_1e6: 最近 slope_window 点 mean_reward 对 timesteps 的
+      最小二乘斜率 x1e6（非首末差分，抗单点噪声）；有效点 <2 或步长无变化时为 0
+    - eval_std_recent: std_reward（评估内策略输出 std）最近 5 点均值，
+      非 mean_reward 的 std（命名歧义，勿改）
+    - eval_neg_ratio: 全部有效评估点中 mean_reward<0 的占比
+    - eval_neg_ratio_recent: 最近 recent_window 点中 mean_reward<0 的占比
+      （崩溃早期信号，先于回撤报警）
+    """
     f: dict[str, Any] = {}
     if df is None or df.empty:
         return f
@@ -191,21 +207,36 @@ def eval_factors(df: pd.DataFrame) -> dict[str, Any]:
         # 回撤定义为不超过峰值的损失比例
         f["eval_drawdown"] = round(min(1.0, (peak - last) / peak), 4) if peak > 0 else 0.0
     f["reward_peak_ratio"] = round(last / peak, 4) if peak > 0 else None
-    win = d.tail(5)
-    if len(win) >= 2:
-        span = float(pd.to_numeric(win["timesteps"], errors="coerce").iloc[-1]
-                     - pd.to_numeric(win["timesteps"], errors="coerce").iloc[0])
-        delta = float(pd.to_numeric(win["mean_reward"], errors="coerce").iloc[-1]
-                      - pd.to_numeric(win["mean_reward"], errors="coerce").iloc[0])
-        f["eval_slope_per_1e6"] = round(delta / span * 1e6, 4) if span > 0 else 0.0
+    win = d.tail(max(slope_window, 2))
+    xs = pd.to_numeric(win["timesteps"], errors="coerce")
+    ys = pd.to_numeric(win["mean_reward"], errors="coerce")
+    m = xs.notna() & ys.notna()
+    if m.sum() >= 2 and float(xs[m].std(ddof=0)) > 0:
+        slope = float(np.polyfit(xs[m], ys[m], 1)[0]) * 1e6
+        f["eval_slope_per_1e6"] = round(slope, 4)
+    else:
+        f["eval_slope_per_1e6"] = 0.0
     stds = pd.to_numeric(d["std_reward"], errors="coerce").tail(5).dropna()
     if len(stds):
         f["eval_std_recent"] = round(float(stds.mean()), 4)
+    valid = rewards.dropna()
+    if len(valid):
+        f["eval_neg_ratio"] = round(float((valid < 0).mean()), 4)
+        recent = valid.tail(max(recent_window, 1))
+        f["eval_neg_ratio_recent"] = round(float((recent < 0).mean()), 4)
     return f
 
 
 def tb_factors(df: pd.DataFrame, vl_cfg: dict[str, Any]) -> dict[str, Any]:
-    """健康度因子（tb_points：TensorBoard rollout 指标）。"""
+    """健康度因子（tb_points：TensorBoard rollout 指标）。
+
+    因子字典（公式与口径）：
+    - approx_kl_last: 过滤后（(0,1] 区间）最后一个有效 approx_kl；
+      脏值（<=0 或 >1.0，如日志损坏的 122376）置空不入库
+    - std_last: 最后一个 rollout 策略输出 std（与 eval_std_recent 不同源）
+    - ev_neg_streak: 从尾部开始连续为负的 explained_variance 个数（非历史最长）
+    - value_loss_divergent: value_loss 连续上升且远超前期均值的发散判定
+    """
     f: dict[str, Any] = {}
     if df is None or df.empty:
         return f
@@ -288,7 +319,11 @@ def run_factors(
 ) -> dict[str, Any]:
     """汇总单个 (task, seed) 的全部因子（不含 task/seed 本身）。"""
     f: dict[str, Any] = {}
-    f.update(eval_factors(_filter(tables.get("eval_points"), task, seed)))
+    f.update(eval_factors(
+        _filter(tables.get("eval_points"), task, seed),
+        slope_window=int(cfg["risk"]["eval_slope"]["window"]),
+        recent_window=int(cfg["risk"]["neg_ratio"]["recent_window"]),
+    ))
     f.update(tb_factors(_filter(tables.get("tb_points"), task, seed), cfg["risk"]["value_loss"]))
     f.update(acceptance_factors(_filter(tables.get("reports"), task, seed)))
     f.update(snapshot_factors(_filter(tables.get("snapshots"), task, seed), cfg["risk"]["resources"]["idle"]))
@@ -331,6 +366,22 @@ def run_risk_items(f: dict[str, Any], cfg: dict[str, Any]) -> list[RiskItem]:
         add("R2", "eval_points", "stagnation",
             f"训练进度 {pr:.0%} 但奖励仅为峰值的 {rpr:.0%}"
             f"（<{r['stagnation']['reward_ratio']:.0%}），疑似停滞")
+
+    # 负奖励占比：崩溃早期信号，先于回撤报警（recent>50% 严重，整体>30% 观察）
+    neg_recent = f.get("eval_neg_ratio_recent")
+    if neg_recent is not None and neg_recent > r["neg_ratio"]["severe"]:
+        add("R2", "eval_points", "neg_ratio",
+            f"近期评估奖励负值占比 {neg_recent:.0%}（>{r['neg_ratio']['severe']:.0%}），疑似策略崩溃")
+    elif f.get("eval_neg_ratio") is not None and f["eval_neg_ratio"] > r["neg_ratio"]["watch"]:
+        add("R1", "eval_points", "neg_ratio",
+            f"评估奖励负值占比 {f['eval_neg_ratio']:.0%}（>{r['neg_ratio']['watch']:.0%}）")
+
+    # 评估内策略输出 std 塌缩（与 tb_points std_last 不同源；评估点数不足 5 不判）
+    eval_pts = f.get("eval_points", 0)
+    esr = f.get("eval_std_recent")
+    if eval_pts >= 5 and esr is not None and esr < r["std_reward"]["collapse"]:
+        add("R1", "eval_points", "std_reward_collapse",
+            f"策略输出标准差 {esr}（<{r['std_reward']['collapse']}），疑似确定性退化")
 
     # 策略输出标准差：塌缩观察，发散警告
     std_last = f.get("std_last")
@@ -414,7 +465,7 @@ def run_risk_items(f: dict[str, Any], cfg: dict[str, Any]) -> list[RiskItem]:
 def decide(f: dict[str, Any], risks: list[RiskItem], cfg: dict[str, Any]) -> tuple[str, list[str]]:
     """由风险项给出建议：continue / watch / stop / tune / resize。
 
-    矩阵：R3 -> stop；R2 -> 按触发因子细分（回撤/停滞/NaN 早停，
+    矩阵：R3 -> stop；R2 -> 按触发因子细分（回撤/停滞/NaN/负奖励崩溃 早停，
     健康度调参，资源类重调度）；R1 -> watch；R0 -> continue。
     """
     level = max_level(risks)
@@ -429,7 +480,7 @@ def decide(f: dict[str, Any], risks: list[RiskItem], cfg: dict[str, Any]) -> tup
             return "tune", msgs
         if factors & {"swap", "mem", "cpu", "stall", "idle"}:
             return "resize", msgs
-        if factors & {"stagnation", "nan"}:
+        if factors & {"stagnation", "nan", "neg_ratio"}:
             return "stop", msgs
         return "watch", msgs
     if level == "R1":
