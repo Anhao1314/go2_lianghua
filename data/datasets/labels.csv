@@ -1,5 +1,5 @@
 ﻿task,seed,completed,verdict,success_rate,duration_seconds,total_steps,final_reward,final_ep_len
-balance,seed00,True,,,425827.0366888046,8000000.0,-18.8337,80.0
+balance,seed00,True,pass,,410200.2740764618,8000000.0,-18.8337,80.0
 balance,seed01,False,,,362791.50980615616,8000000.0,,
 balance,seed02,False,,,25240.488173246384,8000000.0,,
 balance_v1,seed00,False,,,,,0.9969,1.0

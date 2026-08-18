@@ -149,20 +149,26 @@ def parse_tb_points(task: str, seed: str, run_dir: Path) -> list[dict]:
         return []
 
     def scalar(tag: str) -> list[tuple[int, float]]:
+        def _clean(values: list[tuple[int, float]]) -> list[tuple[int, float]]:
+            # 丢弃非有限值（损坏/未初始化事件），避免污染因子计算
+            return [(s, v) for s, v in values if math.isfinite(v)]
+
         try:
             events = acc.Scalars(tag)
             if events:
-                return [(e.step, float(e.value)) for e in events]
+                return _clean([(e.step, float(e.value)) for e in events])
         except Exception:
             pass
         # 新版 SummaryWriter 可能把标量写成 tensor 事件
         try:
             from tensorboard.util import tensor_util
 
-            return [
-                (e.step, float(tensor_util.make_ndarray(e.tensor_proto).reshape(-1)[0]))
-                for e in acc.Tensors(tag)
-            ]
+            return _clean(
+                [
+                    (e.step, float(tensor_util.make_ndarray(e.tensor_proto).reshape(-1)[0]))
+                    for e in acc.Tensors(tag)
+                ]
+            )
         except Exception:
             return []
 
@@ -182,7 +188,11 @@ def parse_tb_points(task: str, seed: str, run_dir: Path) -> list[dict]:
     for step in steps:
         row = {"task": task, "seed": seed, "step": int(step)}
         for name, values in series.items():
-            row[name] = next((v for s, v in values if s == step), None)
+            value = next((v for s, v in values if s == step), None)
+            if name == "approx_kl" and value is not None and not (0.0 < value <= 1.0):
+                # PPO approx_kl 合理区间为 (0, 1]；0/负值/超界视为日志误写或损坏值
+                value = None
+            row[name] = value
         rows.append(row)
     return rows
 
@@ -262,16 +272,75 @@ def parse_train_config(guard_dir: Path, task: str, seed: str) -> dict:
     return cfg
 
 
+def _report_run_keys(reports_root: Path) -> set[tuple[str, str]]:
+    """扫描 reports/ 下全部 (task, seed) 验收键（以 metrics.csv 为准）。"""
+    keys: set[tuple[str, str]] = set()
+    for metrics in reports_root.glob("*/seed*/metrics.csv"):
+        keys.add((metrics.parent.parent.name, metrics.parent.name))
+    return keys
+
+
+def _acceptance_labels(reports_root: Path, task: str, seed: str) -> dict:
+    """验收标签：优先 summary.json；缺失时从 metrics.csv 兜底推导。
+
+    verdict 兜底：场景 success 全为 True -> pass，否则 fail；
+    success_rate 兜底：场景 success_rate 的均值（summary 优先）。
+    返回 {"summary", "verdict", "success_rate", "has_metrics"}。
+    """
+    summary = _read_summary(reports_root, task, seed)
+    labels: dict[str, Any] = {
+        "summary": summary,
+        "verdict": summary.get("verdict") if summary else None,
+        "success_rate": summary.get("success_rate") if summary else None,
+        "has_metrics": False,
+    }
+    metrics_path = reports_root / task / seed / "metrics.csv"
+    if not metrics_path.exists():
+        return labels
+    labels["has_metrics"] = True
+    try:
+        df = pd.read_csv(metrics_path)
+    except Exception:
+        return labels
+    if len(df) and "success" in df.columns:
+        success = pd.to_numeric(df["success"], errors="coerce").fillna(0).astype(bool)
+        if not labels["verdict"]:
+            labels["verdict"] = "pass" if bool(success.all()) else "fail"
+    if labels["success_rate"] is None and "success_rate" in df.columns:
+        sr = pd.to_numeric(df["success_rate"], errors="coerce").dropna()
+        if len(sr):
+            labels["success_rate"] = float(sr.mean())
+    return labels
+
+
+def _run_keys(
+    source_repo: Path, tasks: list[str], reports_root: Path
+) -> dict[tuple[str, str], Path | None]:
+    """run 集合 = rl/runs 目录 ∪ reports 验收报告（限定任务范围）。"""
+    keys: dict[tuple[str, str], Path | None] = {}
+    for task, seed, run_dir in iter_run_dirs(source_repo, tasks):
+        keys[(task, seed)] = run_dir
+    allowed = set(tasks)
+    for task, seed in _report_run_keys(reports_root):
+        if task in allowed:
+            keys.setdefault((task, seed), None)  # 只有验收报告、无运行目录的 run 也入表
+    return keys
+
+
 def build_runs(source_repo: Path, tasks: list[str]) -> list[dict]:
     state = read_state(source_repo)
     runs_state = state.get("runs", {})
     guard_dir = source_repo / "rl" / "runs" / "_guard"
     reports_root = source_repo / "reports"
+    keys = _run_keys(source_repo, tasks, reports_root)
     rows: list[dict] = []
-    for task, seed, run_dir in iter_run_dirs(source_repo, tasks):
+    for (task, seed), run_dir in sorted(keys.items()):
         rec = runs_state.get(f"{task}/{seed}", {})
         cfg = parse_train_config(guard_dir, task, seed)
-        summary = _read_summary(reports_root, task, seed)
+        labels = _acceptance_labels(reports_root, task, seed)
+        completed = bool((run_dir / ".completed").exists()) if run_dir else False
+        if labels["has_metrics"]:
+            completed = True  # 有验收报告即视为训练完成
         rows.append(
             {
                 "task": task,
@@ -279,15 +348,105 @@ def build_runs(source_repo: Path, tasks: list[str]) -> list[dict]:
                 "owner": rec.get("owner", ""),
                 "status": rec.get("status", ""),
                 "attempts": rec.get("attempts"),
-                "completed": bool((run_dir / ".completed").exists()),
+                "completed": completed,
                 "total_steps": cfg.get("total_steps"),
                 "envs": cfg.get("envs"),
                 "curriculum_steps": cfg.get("curriculum_steps"),
                 "terrain": cfg.get("terrain", ""),
                 "init_from": cfg.get("init_from", ""),
-                "verdict": summary.get("verdict") if summary else None,
-                "success_rate": summary.get("success_rate") if summary else None,
+                "verdict": labels["verdict"],
+                "success_rate": labels["success_rate"],
                 "duration_seconds": None,
+            }
+        )
+    return rows
+
+
+def _read_prev_labels(out_dir: Path) -> dict[tuple[str, str], dict]:
+    """读取上一轮 labels.csv 作为人工修正基线（不存在/损坏则视为空）。"""
+    path = out_dir / "labels.csv"
+    if not path.exists():
+        return {}
+    try:
+        df = pd.read_csv(path)
+    except Exception:
+        return {}
+    prev: dict[tuple[str, str], dict] = {}
+    for _, r in df.iterrows():
+        key = (str(r["task"]), str(r["seed"]))
+        comp = r.get("completed")
+        if pd.isna(comp):
+            completed = False
+        else:
+            completed = str(comp).strip().lower() in ("true", "1", "1.0")
+        prev[key] = {
+            "completed": completed,
+            "verdict": None if pd.isna(r["verdict"]) else r["verdict"],
+            "success_rate": (
+                None if pd.isna(r["success_rate"]) else float(r["success_rate"])
+            ),
+            "duration_seconds": (
+                None if pd.isna(r["duration_seconds"]) else float(r["duration_seconds"])
+            ),
+            "label_source": (
+                "auto" if pd.isna(r.get("label_source")) else str(r.get("label_source"))
+            ),
+            "label_updated_at": (
+                "" if pd.isna(r.get("label_updated_at")) else str(r.get("label_updated_at"))
+            ),
+        }
+    return prev
+
+
+def build_labels(
+    source_repo: Path,
+    tasks: list[str],
+    prev: dict[tuple[str, str], dict],
+    duration_map: dict[tuple[str, str], float],
+    now: str,
+) -> list[dict]:
+    """权威标签表：auto 行随采集刷新，manual 行人工锁定不被覆盖。
+
+    与 runs.csv 一一对应，每个 (task, seed) 一行（含全部 manual 行）；
+    v3 建模直接以本表为标签（y）来源。
+    """
+    reports_root = source_repo / "reports"
+    keys = _run_keys(source_repo, tasks, reports_root)
+    rows: list[dict] = []
+    for (task, seed), run_dir in sorted(keys.items()):
+        old = prev.get((task, seed))
+        if old is not None and old["label_source"] == "manual":
+            # 人工锁定：整行保留，采集不覆盖
+            rows.append(
+                {
+                    "task": task,
+                    "seed": seed,
+                    "completed": old["completed"],
+                    "verdict": old["verdict"],
+                    "success_rate": old["success_rate"],
+                    "duration_seconds": old["duration_seconds"],
+                    "label_source": "manual",
+                    "label_updated_at": old["label_updated_at"],
+                }
+            )
+            continue
+        labels = _acceptance_labels(reports_root, task, seed)
+        verdict = labels["verdict"]
+        success_rate = labels["success_rate"]
+        duration = duration_map.get((task, seed))
+        completed = bool((run_dir / ".completed").exists()) if run_dir else False
+        if labels["has_metrics"]:
+            completed = True  # 有验收报告即视为训练完成
+        rows.append(
+            {
+                "task": task,
+                "seed": seed,
+                "completed": completed,
+                "verdict": verdict,
+                "success_rate": success_rate,
+                "duration_seconds": duration,
+                "label_source": "auto",
+                "label_updated_at": now,
             }
         )
     return rows
@@ -310,7 +469,7 @@ def parse_reports(reports_root: Path) -> list[dict]:
         seed_dir = metrics.parent
         task = seed_dir.parent.name
         seed = seed_dir.name
-        summary = _read_summary(reports_root, task, seed) or {}
+        labels = _acceptance_labels(reports_root, task, seed)
         try:
             df = pd.read_csv(metrics)
         except Exception:
@@ -321,7 +480,7 @@ def parse_reports(reports_root: Path) -> list[dict]:
                     "task": task,
                     "seed": seed,
                     "label": str(r.get("label", "")),
-                    "verdict": summary.get("verdict"),
+                    "verdict": labels["verdict"],
                     "success": r.get("success"),
                     "success_rate": r.get("success_rate"),
                     "max_dev": r.get("max_dev"),
@@ -432,30 +591,6 @@ def _duration_map(snapshot_rows: list[dict]) -> dict[tuple[str, str], float]:
     return out
 
 
-def build_labels(runs_rows: list[dict], eval_rows: list[dict]) -> list[dict]:
-    """每个 (task, seed) 一行的建模标签：验收结论、成功率、耗时、最终指标。"""
-    last_eval: dict[tuple[str, str], dict] = {}
-    for r in eval_rows:
-        last_eval[(r["task"], r["seed"])] = r
-    out: list[dict] = []
-    for r in runs_rows:
-        e = last_eval.get((r["task"], r["seed"]))
-        out.append(
-            {
-                "task": r["task"],
-                "seed": r["seed"],
-                "completed": r["completed"],
-                "verdict": r["verdict"],
-                "success_rate": r["success_rate"],
-                "duration_seconds": r["duration_seconds"],
-                "total_steps": r["total_steps"],
-                "final_reward": e["mean_reward"] if e else None,
-                "final_ep_len": e["mean_ep_len"] if e else None,
-            }
-        )
-    return out
-
-
 def collect(cfg: dict) -> dict[str, int]:
     source = cfg.get("source_repo")
     if isinstance(source, str):
@@ -485,7 +620,12 @@ def collect(cfg: dict) -> dict[str, int]:
     dur = _duration_map(snap_rows)
     for row in runs_rows:
         row["duration_seconds"] = dur.get((row["task"], row["seed"]))
-    labels_rows = build_labels(runs_rows, eval_rows)
+
+    # 权威标签表：auto 行自动刷新；prev 中的 manual 行保留人工修正
+    prev_labels = _read_prev_labels(out_dir)
+    labels_rows = build_labels(
+        source, tasks, prev_labels, dur, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
 
     reports_rows = parse_reports(source / "reports")
     costs_rows = parse_costs(cfg.get("lianghua_db"), cfg["peak_hours"], cfg["pricing"])

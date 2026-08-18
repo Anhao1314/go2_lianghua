@@ -265,11 +265,198 @@ class CollectTest(unittest.TestCase):
 
             labels = pd.read_csv(out / "labels.csv")
             bl = labels[labels["task"] == "balance"].iloc[0]
+            self.assertTrue(bl["completed"])
             self.assertEqual(bl["verdict"], "pass")
             self.assertAlmostEqual(bl["duration_seconds"], 60.0)
-            self.assertAlmostEqual(bl["final_reward"], 2.0)
-            self.assertAlmostEqual(bl["final_ep_len"], 200.0)
+            self.assertEqual(bl["label_source"], "auto")
+            self.assertTrue(str(bl["label_updated_at"]))
 
+
+def write_metrics(root: Path, task: str, seed: str, rows: list[tuple]) -> Path:
+    """写一份验收 metrics.csv（与 make_source 列序一致）。"""
+    reports = root / "reports" / task / seed
+    reports.mkdir(parents=True, exist_ok=True)
+    path = reports / "metrics.csv"
+    header = (
+        "label,task,max_dev,min_clear,dual_hold,recovered,settle_seconds,"
+        "success,success_rate,distance,time_to_goal,falls,total_reward,"
+        "mean_base_reward,nan\n"
+    )
+    path.write_text(header + "\n".join(",".join(str(v) for v in r) for r in rows),
+                    encoding="utf-8")
+    return path
+
+
+class LabelChainTest(unittest.TestCase):
+    """验收标签链路：summary 优先、metrics 兜底、报告-only run 入表、TB 过滤。"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.src = make_source(self.root)
+        self.cfg = make_config(self.root, self.src)
+        self.tasks = self.cfg["tasks"] + ["traverse"]
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_verdict_priority_from_summary(self):
+        rows = collector.build_runs(self.src, self.tasks)
+        balance = next(r for r in rows if (r["task"], r["seed"]) == ("balance", "seed00"))
+        # summary.json verdict=pass 优先；success_rate 缺失时兜底 metrics 均值 1.0
+        self.assertEqual(balance["verdict"], "pass")
+        self.assertAlmostEqual(balance["success_rate"], 1.0)
+        self.assertTrue(balance["completed"])
+
+    def test_verdict_fallback_without_summary(self):
+        write_metrics(self.src, "traverse", "seed01", [
+            ("RL PPO (flat)", "traverse", 0.08, 0.30, 0.0, False, 0.0, True, 1.0, 0.0, 0.0, 0.0, 100.0, 0.9, False),
+            ("RL PPO (slope)", "traverse", 0.40, 0.02, 0.0, False, 0.0, False, 0.2, 0.0, 0.0, 3.0, 10.0, 0.1, False),
+        ])
+        rows = collector.build_runs(self.src, self.tasks)
+        t1 = next(r for r in rows if (r["task"], r["seed"]) == ("traverse", "seed01"))
+        self.assertEqual(t1["verdict"], "fail")          # 含 fail 场景 -> fail
+        self.assertAlmostEqual(t1["success_rate"], 0.6)  # (1.0+0.2)/2
+        self.assertTrue(t1["completed"])                 # 有验收报告
+        # parse_reports 同样兜底
+        reps = collector.parse_reports(self.src / "reports")
+        trav = [r for r in reps if (r["task"], r["seed"]) == ("traverse", "seed01")]
+        self.assertEqual(len(trav), 2)
+        self.assertTrue(all(r["verdict"] == "fail" for r in trav))
+
+    def test_report_only_run_included(self):
+        write_metrics(self.src, "traverse", "seed02", [
+            ("RL PPO (flat)", "traverse", 0.08, 0.30, 0.0, False, 0.0, True, 1.0, 0.0, 0.0, 0.0, 100.0, 0.9, False),
+        ])
+        # 故意不创建 rl/runs/traverse/seed02
+        rows = collector.build_runs(self.src, self.tasks)
+        keys = {(r["task"], r["seed"]) for r in rows}
+        self.assertIn(("traverse", "seed02"), keys)
+        t2 = next(r for r in rows if (r["task"], r["seed"]) == ("traverse", "seed02"))
+        self.assertTrue(t2["completed"])
+        self.assertEqual(t2["verdict"], "pass")
+        self.assertAlmostEqual(t2["success_rate"], 1.0)
+        self.assertEqual(t2["owner"], "")
+
+    def test_report_only_run_duration_from_snapshots(self):
+        # 报告-only run 也写入 runs.csv，且时长由快照推算（端到端 collect）
+        guard = self.src / "rl" / "runs" / "_guard" / "snapshots.jsonl"
+        extras = [
+            {
+                "time": 8000.0,
+                "resources": {"cpu_percent": 50.0},
+                "seeds": [{"key": "traverse/seed02", "timesteps": 100000.0, "reward": 1.0}],
+            },
+            {
+                "time": 9000.0,
+                "resources": {"cpu_percent": 50.0},
+                "seeds": [{"key": "traverse/seed02", "timesteps": 200000.0, "reward": 2.0}],
+            },
+        ]
+        lines = guard.read_text(encoding="utf-8").splitlines() + [json.dumps(e) for e in extras]
+        guard.write_text("\n".join(lines), encoding="utf-8")
+        write_metrics(self.src, "traverse", "seed02", [
+            ("RL PPO (flat)", "traverse", 0.08, 0.30, 0.0, False, 0.0, True, 1.0, 0.0, 0.0, 0.0, 100.0, 0.9, False),
+        ])
+        cfg = dict(self.cfg)
+        cfg["tasks"] = self.tasks
+        collector.collect(cfg)
+        runs = pd.read_csv(Path(cfg["output_dir"]) / "runs.csv")
+        t2 = runs[(runs["task"] == "traverse") & (runs["seed"] == "seed02")].iloc[0]
+        self.assertTrue(t2["completed"])
+        self.assertEqual(t2["verdict"], "pass")
+        self.assertAlmostEqual(t2["duration_seconds"], 1000.0, places=3)
+
+    def test_tb_filters_implausible_approx_kl(self):
+        tb2 = self.src / "rl" / "runs" / "balance" / "seed00" / "tensorboard" / "run_2"
+        tb2.mkdir(parents=True)
+        from tensorboard.summary import Writer
+
+        w = Writer(str(tb2))
+        for step, val in (
+            (4096, 0.05),        # 正常
+            (8192, 122376.375),  # 损坏值
+            (12288, 0.0),        # 界外
+            (16384, -0.5),       # 负值
+            (20480, 1.5),        # 超界
+        ):
+            w.add_scalar("train/approx_kl", val, step=step)
+        w.add_scalar("train/std", 0.9, step=4096)
+        w.close()
+        rows = collector.parse_tb_points(
+            "balance", "seed00", self.src / "rl" / "runs" / "balance" / "seed00"
+        )
+        kl = {r["step"]: r["approx_kl"] for r in rows}
+        self.assertAlmostEqual(kl[4096], 0.05, places=6)  # tensorboard 序列化有浮点误差
+        self.assertIsNone(kl[8192])
+        self.assertIsNone(kl[12288])
+        self.assertIsNone(kl[16384])
+        self.assertIsNone(kl[20480])
+        self.assertAlmostEqual(
+            next(r for r in rows if r["step"] == 4096)["std"], 0.9, places=6
+        )
+
+class LabelTableTest(unittest.TestCase):
+    """权威标签表 labels.csv：自动生成、人工锁定保护、幂等。"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.src = make_source(self.root)
+        self.cfg = make_config(self.root, self.src)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _labels(self):
+        return pd.read_csv(Path(self.cfg["output_dir"]) / "labels.csv")
+
+    def test_collect_generates_labels(self):
+        collector.collect(self.cfg)
+        labels = self._labels()
+        self.assertEqual(len(labels), 2)  # 与 runs 一一对应
+        row = labels.iloc[0]
+        self.assertEqual((row["task"], row["seed"]), ("balance", "seed00"))
+        self.assertTrue(row["completed"])
+        self.assertEqual(row["verdict"], "pass")
+        self.assertAlmostEqual(row["success_rate"], 1.0)
+        self.assertAlmostEqual(row["duration_seconds"], 60.0, places=3)
+        self.assertEqual(row["label_source"], "auto")
+        self.assertTrue(str(row["label_updated_at"]))
+        # 未完成且无标签的 run 也占行，标签列留空
+        row2 = labels.iloc[1]
+        self.assertEqual((row2["task"], row2["seed"]), ("traverse_slope", "seed00"))
+        self.assertFalse(row2["completed"])
+        self.assertTrue(pd.isna(row2["verdict"]))
+        self.assertEqual(row2["label_source"], "auto")
+
+    def test_manual_row_survives_recollect(self):
+        collector.collect(self.cfg)
+        out = Path(self.cfg["output_dir"])
+        labels = self._labels()
+        labels.loc[0, "verdict"] = "fail"
+        labels.loc[0, "label_source"] = "manual"
+        labels.to_csv(out / "labels.csv", index=False, encoding="utf-8-sig")
+        collector.collect(self.cfg)  # 第二次采集不应覆盖 manual 行
+        labels2 = self._labels()
+        self.assertEqual(len(labels2), 2)  # 与 runs 一一对应
+        row = labels2[labels2["label_source"] == "manual"].iloc[0]
+        self.assertEqual(row["verdict"], "fail")
+        self.assertAlmostEqual(row["success_rate"], 1.0)
+        self.assertTrue(row["completed"])  # manual 行完整保留
+        self.assertEqual(len(labels2[labels2["label_source"] == "auto"]), 1)
+
+    def test_labels_idempotent_counts(self):
+        first = collector.collect(self.cfg)
+        second = collector.collect(self.cfg)
+        self.assertEqual(first["labels"], second["labels"])
+
+    def test_labels_utf8_bom_and_schema(self):
+        collector.collect(self.cfg)
+        path = Path(self.cfg["output_dir"]) / "labels.csv"
+        with open(path, "rb") as f:
+            self.assertEqual(f.read(3), b"\xef\xbb\xbf")
+        validate_frame(pd.read_csv(path), "labels")
 
 class SchemaAndPortabilityTest(unittest.TestCase):
     def test_schema_validate(self):
@@ -291,6 +478,7 @@ class SchemaAndPortabilityTest(unittest.TestCase):
                 "reports",
                 "costs",
                 "labels",
+                "enriched_labels",
             },
         )
         for table, cols in SCHEMA.items():

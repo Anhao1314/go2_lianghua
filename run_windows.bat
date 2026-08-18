@@ -7,5 +7,23 @@ if not exist ".venv\Scripts\python.exe" (
   ".venv\Scripts\python.exe" -m pip install --upgrade pip
   ".venv\Scripts\python.exe" -m pip install -r requirements.txt
 )
-".venv\Scripts\python.exe" summary.py %*
+if /i "%~1"=="--quant" (
+  ".venv\Scripts\python.exe" quant.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+) else if /i "%~1"=="--modeling" (
+  ".venv\Scripts\python.exe" modeling.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+) else if /i "%~1"=="--baseline" (
+  ".venv\Scripts\python.exe" baseline.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+) else if /i "%~1"=="--curvefit" (
+  ".venv\Scripts\python.exe" curve_fit.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+) else if /i "%~1"=="--backtest" (
+  ".venv\Scripts\python.exe" backtest_rules.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+  ".venv\Scripts\python.exe" backtest_engine.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+) else if /i "%~1"=="--labels" (
+  ".venv\Scripts\python.exe" label_enrichment.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+) else if /i "%~1"=="--screen" (
+  ".venv\Scripts\python.exe" label_enrichment.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+  ".venv\Scripts\python.exe" data_screening.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+) else (
+  ".venv\Scripts\python.exe" summary.py %*
+)
 endlocal

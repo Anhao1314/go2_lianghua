@@ -51,17 +51,17 @@ cost_yuan（按 config.json 峰谷价格估算）。
 来源：`~/文档/lianghua/data/usage.db`（只读）；数据库不存在时该表为空并在
 summary.py 中标注。
 
-## labels.csv（建模标签，每 (task, seed) 一行）
+## labels.csv（建模标签，每 (task, seed) 一行，与 runs 一一对应）
 
 | 列 | 类型 | 含义 |
 |---|---|---|
 | task / seed | str | 任务与 seed |
 | completed | bool | 是否训练完成 |
-| verdict | str | 验收结论 pass/fail（有报告时） |
-| success_rate | float | 整体成功率 |
-| duration_seconds | float | 训练时长（快照推算，近似） |
-| total_steps | int | 目标总步数 |
-| final_reward / final_ep_len | float | 最后一次评估的平均奖励 / episode 长度 |
+| verdict | str | 验收结论 pass/fail（summary.json 优先，metrics.csv 兜底，可人工修正） |
+| success_rate | float | 整体成功率（同上，可人工修正） |
+| duration_seconds | float | 训练时长（快照推算，近似，可人工修正） |
+| label_source | str | auto=采集自动刷新 / manual=人工锁定（采集不覆盖） |
+| label_updated_at | str | 标签更新时间 YYYY-MM-DD HH:MM:SS |
 
-这是 v2 建模的目标变量表：验收早停分类用 verdict/success_rate，耗时回归用
-duration_seconds。
+这是 v3 建模的目标变量表（y）：验收早停分类用 verdict/success_rate，耗时回归用
+duration_seconds；特征矩阵（X）由 modeling.py 从 factors 固化到 data/modeling/。

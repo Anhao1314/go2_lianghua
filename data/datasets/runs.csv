@@ -1,5 +1,5 @@
 ﻿task,seed,owner,status,attempts,completed,total_steps,envs,curriculum_steps,terrain,init_from,verdict,success_rate,duration_seconds
-balance,seed00,cloud,completed,0.0,True,8000000.0,4.0,,,,,,425827.0366888046
+balance,seed00,cloud,completed,0.0,True,8000000.0,4.0,,,,pass,,410200.2740764618
 balance,seed01,cloud,external,0.0,False,8000000.0,8.0,,,,,,362791.50980615616
 balance,seed02,cloud,external,0.0,False,8000000.0,4.0,,,,,,25240.488173246384
 balance_v1,seed00,,,,False,,,,,,,,
