@@ -759,6 +759,17 @@ traverse_flat_slope,seed00,3200000,19.564,2.1747,490.2
 traverse_flat_slope,seed00,3250000,9.3407,0.3222,301.0
 traverse_flat_slope,seed00,3300000,5.9509,1.0206,345.2
 traverse_flat_slope,seed00,3350000,5.5774,1.3014,315.2
+traverse_flat_slope,seed00,3400000,4.1233,2.7192,383.2
+traverse_flat_slope,seed00,3450000,10.2345,1.6653,403.2
+traverse_flat_slope,seed00,3500000,10.3505,3.9552,446.2
+traverse_flat_slope,seed00,3550000,9.5189,10.2046,698.6
+traverse_flat_slope,seed00,3600000,3.3745,1.9161,375.0
+traverse_flat_slope,seed00,3650000,4.8847,4.4806,425.4
+traverse_flat_slope,seed00,3700000,5.3269,4.6518,444.8
+traverse_flat_slope,seed00,3750000,6.597,3.1084,422.6
+traverse_flat_slope,seed00,3800000,10.1017,1.8814,505.8
+traverse_flat_slope,seed00,3850000,11.4191,3.7838,469.8
+traverse_flat_slope,seed00,3900000,15.1116,6.9116,577.6
 traverse_slope,seed00,1800000,21.7462,7.2221,585.8
 traverse_slope,seed00,1850000,-0.8869,4.4388,689.0
 traverse_slope,seed00,1900000,26.8397,13.4593,904.2
