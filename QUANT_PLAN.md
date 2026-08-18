@@ -129,6 +129,13 @@ data/datasets/*.csv ──> factors.py（因子 + 规则 + 分级） ──> qua
     - 当前数据（2026-08-18）：balance/seed00 触发 R2/neg_ratio（recent=100%）决策仍为 stop；
       rule_backtest 赔率表新增 R2/neg_ratio（4 触发）与 R2/std_reward_collapse（1 触发）。
 
+  - 实时监控（已完成，2026-08-18）：`realtime_monitor.py`——Windows 侧建议制监控守护。
+    - 每 5 秒轮询 webpanel（/api/state + /api/viewers），因子字典适配器复用 factors.run_risk_items（不重实现阈值）；
+    - R2+ 按 (task,seed,factor) 冷却 10 分钟发送飞书通知，升级（R1→R2 / R2→R3）免冷却；发送失败不记冷却、下轮重试；
+    - stale/NaN 直接触发（stall>60min 带 stale 标志 / nan 标志 → R2）；新 run 检测（步数回退或 alive 翻转）整体重置状态；
+    - 控制台 ANSI 表格 + data/monitor/realtime_log.csv 追加日志；CLI：--once / --test-notify；
+    - config.json 新增 `monitor` 段；requirements.txt 追加 requests；run_windows.bat 新增 --monitor。
+
 ## 十、假设与边界
 
 - 服务训练过程管理（非投资交易），范围限定本仓库数据。

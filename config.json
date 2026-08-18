@@ -122,5 +122,16 @@
     "collapse_min_span_ratio": 0.2,
     "stop_justified_ratio": 0.7,
     "stop_justified_collapse_ratio": 0.8
+  },
+  "monitor": {
+    "webpanel_url": "http://192.168.50.175:8787",
+    "poll_interval_seconds": 5,
+    "feishu_webhook": "https://open.feishu.cn/open-apis/bot/v2/hook/2e250a4f-049f-49e1-b88f-c00fb0ed620d",
+    "notify_min_level": "R2",
+    "cooldown_minutes": 10,
+    "log_csv": "data/monitor/realtime_log.csv",
+    "enable_log": true,
+    "total_steps_default": 8000000,
+    "total_steps": {}
   }
 }
