@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 data/raw/
 data/*.log
+data/.quant_last_date
+data/quant.log

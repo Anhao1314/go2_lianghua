@@ -1,35 +1,104 @@
-{
-  "source_repo": "/home/anhao/jiaoben-web/unitree-go2w-mobility",
-  "lianghua_db": "~/文档/lianghua/data/usage.db",
-  "output_dir": "data/datasets",
-  "raw_dir": "data/raw",
-  "tasks": [
-    "balance",
-    "full_chain",
-    "traverse_slope",
-    "traverse_flat_slope",
-    "traverse_curve"
-  ],
-  "archived_tasks": [
-    "traverse",
-    "traverse_v1",
-    "balance_v1",
-    "full_chain_v1",
-    "traverse_curve_v1",
-    "traverse_slope_v1",
-    "traverse_flat_slope_v1"
-  ],
-  "peak_hours": [10, 22],
-  "pricing": {
-    "peak": {
-      "cached_input": 0.10,
-      "uncached_input": 3.0,
-      "output": 9.0
-    },
-    "offpeak": {
-      "cached_input": 0.05,
-      "uncached_input": 1.5,
-      "output": 4.5
-    }
-  }
-}
+{
+  "source_repo": "/home/anhao/jiaoben-web/unitree-go2w-mobility",
+  "lianghua_db": "~/文档/lianghua/data/usage.db",
+  "output_dir": "data/datasets",
+  "raw_dir": "data/raw",
+  "tasks": [
+    "balance",
+    "full_chain",
+    "traverse_slope",
+    "traverse_flat_slope",
+    "traverse_curve"
+  ],
+  "archived_tasks": [
+    "traverse",
+    "traverse_v1",
+    "balance_v1",
+    "full_chain_v1",
+    "traverse_curve_v1",
+    "traverse_slope_v1",
+    "traverse_flat_slope_v1"
+  ],
+  "peak_hours": [
+    10,
+    22
+  ],
+  "pricing": {
+    "peak": {
+      "cached_input": 0.1,
+      "uncached_input": 3.0,
+      "output": 9.0
+    },
+    "offpeak": {
+      "cached_input": 0.05,
+      "uncached_input": 1.5,
+      "output": 4.5
+    }
+  },
+  "report_dir": "data/reports",
+  "risk": {
+    "drawdown": {
+      "watch": 0.15,
+      "stop": 0.3
+    },
+    "stagnation": {
+      "progress": 0.6,
+      "reward_ratio": 0.6
+    },
+    "std": {
+      "collapse": 0.05,
+      "explode": 1.5
+    },
+    "value_loss": {
+      "window": 20,
+      "rise_points": 10,
+      "mult": 2.0
+    },
+    "approx_kl": {
+      "watch": 0.05,
+      "warn": 0.1
+    },
+    "explained_variance": {
+      "neg_points": 10
+    },
+    "nan": {
+      "warn": 1,
+      "severe": 3
+    },
+    "acceptance": {
+      "max_dev": 0.15,
+      "min_clear": 0.05
+    },
+    "resources": {
+      "cpu_warn": 95.0,
+      "mem_warn": 95.0,
+      "swap": {
+        "watch": 50.0,
+        "warn": 80.0
+      },
+      "idle": {
+        "cpu_below": 20.0,
+        "minutes": 60
+      }
+    },
+    "stall_minutes": {
+      "watch": 30,
+      "warn": 60
+    },
+    "budget": {
+      "daily": 5.0,
+      "weekly": 30.0,
+      "monthly": 120.0,
+      "watch_ratio": 0.8,
+      "severe_ratio": 1.5
+    },
+    "cache_rate_watch": 0.3
+  },
+  "modeling_dir": "data/modeling",
+  "compute": {
+    "gpu_count": 1,
+    "gpu_hourly_price": 2.5,
+    "cpu_hourly_price": 0.5,
+    "currency": "CNY"
+  }
+}

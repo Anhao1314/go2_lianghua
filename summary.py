@@ -27,7 +27,8 @@ def print_summary(cfg: dict) -> None:
     for table in KEY_COLUMNS:
         df = read_table(out_dir, table)
         if df is None:
-            print(f"  {table:<14} 不存在")
+            note = "（由 Linux 采集端生成）" if table == "labels" else ""
+            print(f"  {table:<14} 不存在{note}")
             continue
         counts[table] = len(df)
         print(f"  {table:<14} {len(df):>8} 行")

@@ -99,12 +99,11 @@ SCHEMA: dict[str, list[tuple[str, str, str]]] = {
         ("task", "str", "任务名"),
         ("seed", "str", "seed 编号"),
         ("completed", "bool", "是否训练完成"),
-        ("verdict", "str", "验收结论 pass/fail（有报告时）"),
-        ("success_rate", "float", "整体成功率（traverse 类）"),
-        ("duration_seconds", "float", "训练时长秒（近似）"),
-        ("total_steps", "int", "目标总步数"),
-        ("final_reward", "float", "最后一次评估平均奖励"),
-        ("final_ep_len", "float", "最后一次评估平均 episode 长度"),
+        ("verdict", "str", "验收结论 pass/fail（建模标签，可人工修正）"),
+        ("success_rate", "float", "整体成功率（建模标签，可人工修正）"),
+        ("duration_seconds", "float", "训练时长秒（快照推算，可人工修正）"),
+        ("label_source", "str", "auto=采集自动 / manual=人工锁定"),
+        ("label_updated_at", "str", "标签更新时间 YYYY-MM-DD HH:MM:SS"),
     ],
 }
 
