@@ -1,11 +1,11 @@
 {
   "today": "2026-08-18",
-  "generated_at": "2026-08-18T13:59:16",
+  "generated_at": "2026-08-18T15:45:04",
   "coverage": {
-    "runs": 25,
-    "eval_points": 1001,
-    "tb_points": 7283,
-    "snapshots": 13070,
+    "runs": 28,
+    "eval_points": 1155,
+    "tb_points": 7818,
+    "snapshots": 14322,
     "reports": 12,
     "costs": 3
   },
@@ -35,10 +35,10 @@
         "min_clear_min": 0.434,
         "falls_mean": 0.0,
         "nan_count": 0,
-        "snapshot_count": 1452,
-        "time_span_minutes": 6836.7,
+        "snapshot_count": 1705,
+        "time_span_minutes": 7106.4,
         "timesteps_growth": 4001792.0,
-        "stall_minutes": 900.8,
+        "stall_minutes": 1170.5,
         "cpu_percent_max": 100.0,
         "mem_percent_max": 78.7,
         "swap_percent_max": 22.4,
@@ -320,10 +320,10 @@
         "std_last": 0.0333,
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
-        "snapshot_count": 692,
-        "time_span_minutes": 1109.4,
+        "snapshot_count": 945,
+        "time_span_minutes": 1379.1,
         "timesteps_growth": 5905888.0,
-        "stall_minutes": 319.2,
+        "stall_minutes": 341.3,
         "cpu_percent_max": 100.0,
         "mem_percent_max": 69.2,
         "swap_percent_max": 0.0,
@@ -638,29 +638,29 @@
       "task": "traverse_curve",
       "seed": "seed00",
       "factors": {
-        "eval_points": 14,
-        "eval_last_timesteps": 700000,
-        "eval_last_reward": -9.6688,
-        "eval_peak_reward": 8.0973,
-        "eval_drawdown": 1.0,
-        "reward_peak_ratio": -1.1941,
-        "eval_slope_per_1e6": -44.3066,
-        "eval_std_recent": 5.1454,
-        "eval_neg_ratio": 0.5,
-        "eval_neg_ratio_recent": 0.2,
+        "eval_points": 80,
+        "eval_last_timesteps": 4000000,
+        "eval_last_reward": 133.547,
+        "eval_peak_reward": 134.454,
+        "eval_drawdown": 0.0067,
+        "reward_peak_ratio": 0.9933,
+        "eval_slope_per_1e6": 3.4894,
+        "eval_std_recent": 0.2801,
+        "eval_neg_ratio": 0.1875,
+        "eval_neg_ratio_recent": 0.0,
         "approx_kl_last": 0.5671,
         "std_last": 0.0919,
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
         "report_rows": 1,
-        "verdict_fail_ratio": 1.0,
-        "success_rate_mean": 0.0,
-        "max_dev_max": 0.2041,
-        "falls_mean": 1.0,
+        "verdict_fail_ratio": 0.0,
+        "success_rate_mean": 1.0,
+        "max_dev_max": 0.0398,
+        "falls_mean": 0.0,
         "nan_count": 0,
-        "snapshot_count": 691,
-        "time_span_minutes": 1108.8,
-        "timesteps_growth": 679936.0,
+        "snapshot_count": 944,
+        "time_span_minutes": 1378.6,
+        "timesteps_growth": 3989504.0,
         "stall_minutes": 201.4,
         "cpu_percent_max": 100.0,
         "mem_percent_max": 69.2,
@@ -671,33 +671,9 @@
       "risks": [
         {
           "level": "R2",
-          "table": "eval_points",
-          "factor": "drawdown",
-          "message": "评估奖励较峰值回撤 100.0%（阈值 30%）"
-        },
-        {
-          "level": "R1",
-          "table": "eval_points",
-          "factor": "neg_ratio",
-          "message": "评估奖励负值占比 50%（>30%）"
-        },
-        {
-          "level": "R2",
           "table": "tb_points",
           "factor": "approx_kl",
           "message": "approx_kl=0.5671（>0.1）"
-        },
-        {
-          "level": "R1",
-          "table": "reports",
-          "factor": "acceptance",
-          "message": "全部验收场景 verdict=fail，需人工复核"
-        },
-        {
-          "level": "R1",
-          "table": "reports",
-          "factor": "acceptance",
-          "message": "最大俯仰偏差 0.2041 rad（>0.15）"
         },
         {
           "level": "R1",
@@ -707,13 +683,9 @@
         }
       ],
       "level": "R2",
-      "decision": "stop",
+      "decision": "tune",
       "reasons": [
-        "评估奖励较峰值回撤 100.0%（阈值 30%）",
-        "评估奖励负值占比 50%（>30%）",
         "approx_kl=0.5671（>0.1）",
-        "全部验收场景 verdict=fail，需人工复核",
-        "最大俯仰偏差 0.2041 rad（>0.15）",
         "CPU 使用率峰值 100%（>95%）"
       ]
     },
@@ -846,44 +818,17 @@
       "task": "traverse_flat_slope",
       "seed": "seed00",
       "factors": {
-        "eval_points": 21,
-        "eval_last_timesteps": 1050000,
-        "eval_last_reward": 24.8771,
-        "eval_peak_reward": 30.0545,
-        "eval_drawdown": 0.1723,
-        "reward_peak_ratio": 0.8277,
-        "eval_slope_per_1e6": 25.0036,
-        "eval_std_recent": 1.3813,
-        "eval_neg_ratio": 0.2857,
-        "eval_neg_ratio_recent": 0.0,
-        "approx_kl_last": 0.0672,
-        "std_last": 0.2347,
-        "ev_neg_streak": 0,
-        "value_loss_divergent": false,
-        "snapshot_count": 681,
-        "time_span_minutes": 1109.4,
-        "timesteps_growth": 1056768.0,
+        "snapshot_count": 933,
+        "time_span_minutes": 1379.1,
+        "timesteps_growth": 0.0,
         "stall_minutes": 1043.7,
         "cpu_percent_max": 100.0,
         "mem_percent_max": 69.2,
         "swap_percent_max": 0.0,
         "idle_minutes": 15.5,
-        "completed": false,
-        "progress_ratio": 0.2625
+        "completed": false
       },
       "risks": [
-        {
-          "level": "R1",
-          "table": "eval_points",
-          "factor": "drawdown",
-          "message": "评估奖励较峰值回撤 17.2%（阈值 15%）"
-        },
-        {
-          "level": "R1",
-          "table": "tb_points",
-          "factor": "approx_kl",
-          "message": "approx_kl=0.0672（>0.05）"
-        },
         {
           "level": "R1",
           "table": "snapshots",
@@ -900,8 +845,6 @@
       "level": "R2",
       "decision": "resize",
       "reasons": [
-        "评估奖励较峰值回撤 17.2%（阈值 15%）",
-        "approx_kl=0.0672（>0.05）",
         "CPU 使用率峰值 100%（>95%）",
         "timesteps 连续 1044 分钟无增长（>=60）"
       ]
@@ -977,52 +920,87 @@
       ]
     },
     {
-      "task": "traverse_slope",
+      "task": "traverse_flat_slope_v1",
       "seed": "seed00",
       "factors": {
-        "eval_points": 19,
-        "eval_last_timesteps": 2700000,
-        "eval_last_reward": 8.5075,
-        "eval_peak_reward": 26.8397,
-        "eval_drawdown": 0.683,
-        "reward_peak_ratio": 0.317,
-        "eval_slope_per_1e6": 15.806,
-        "eval_std_recent": 5.404,
-        "eval_neg_ratio": 0.1053,
+        "eval_points": 80,
+        "eval_last_timesteps": 4000000,
+        "eval_last_reward": 3.3709,
+        "eval_peak_reward": 41.9885,
+        "eval_drawdown": 0.9197,
+        "reward_peak_ratio": 0.0803,
+        "eval_slope_per_1e6": -24.8416,
+        "eval_std_recent": 3.5614,
+        "eval_neg_ratio": 0.075,
         "eval_neg_ratio_recent": 0.0,
-        "approx_kl_last": 0.4286,
-        "std_last": 0.0861,
+        "approx_kl_last": 0.3456,
+        "std_last": 0.0975,
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
-        "snapshot_count": 692,
-        "time_span_minutes": 1109.4,
-        "timesteps_growth": 2733040.0,
-        "stall_minutes": 720.2,
-        "cpu_percent_max": 100.0,
-        "mem_percent_max": 69.2,
-        "swap_percent_max": 0.0,
-        "idle_minutes": 15.5,
-        "completed": false,
-        "progress_ratio": 0.675
+        "completed": true
       },
       "risks": [
         {
           "level": "R2",
           "table": "eval_points",
           "factor": "drawdown",
-          "message": "评估奖励较峰值回撤 68.3%（阈值 30%）"
-        },
-        {
-          "level": "R2",
-          "table": "eval_points",
-          "factor": "stagnation",
-          "message": "训练进度 68% 但奖励仅为峰值的 32%（<60%），疑似停滞"
+          "message": "评估奖励较峰值回撤 92.0%（阈值 30%）"
         },
         {
           "level": "R2",
           "table": "tb_points",
           "factor": "approx_kl",
-          "message": "approx_kl=0.4286（>0.1）"
+          "message": "approx_kl=0.3456（>0.1）"
+        }
+      ],
+      "level": "R2",
+      "decision": "stop",
+      "reasons": [
+        "评估奖励较峰值回撤 92.0%（阈值 30%）",
+        "approx_kl=0.3456（>0.1）"
+      ]
+    },
+    {
+      "task": "traverse_slope",
+      "seed": "seed00",
+      "factors": {
+        "eval_points": 3,
+        "eval_last_timesteps": 150000,
+        "eval_last_reward": -32.5638,
+        "eval_peak_reward": 7.3007,
+        "eval_drawdown": 1.0,
+        "reward_peak_ratio": -4.4604,
+        "eval_slope_per_1e6": -398.645,
+        "eval_std_recent": 0.1355,
+        "eval_neg_ratio": 0.6667,
+        "eval_neg_ratio_recent": 0.6667,
+        "approx_kl_last": 0.0273,
+        "std_last": 0.7892,
+        "ev_neg_streak": 0,
+        "value_loss_divergent": false,
+        "snapshot_count": 933,
+        "time_span_minutes": 1379.1,
+        "timesteps_growth": 163840.0,
+        "stall_minutes": 720.2,
+        "cpu_percent_max": 100.0,
+        "mem_percent_max": 69.2,
+        "swap_percent_max": 0.0,
+        "idle_minutes": 15.5,
+        "completed": false,
+        "progress_ratio": 0.0375
+      },
+      "risks": [
+        {
+          "level": "R2",
+          "table": "eval_points",
+          "factor": "drawdown",
+          "message": "评估奖励较峰值回撤 100.0%（阈值 30%）"
+        },
+        {
+          "level": "R2",
+          "table": "eval_points",
+          "factor": "neg_ratio",
+          "message": "近期评估奖励负值占比 67%（>50%），疑似策略崩溃"
         },
         {
           "level": "R1",
@@ -1040,9 +1018,8 @@
       "level": "R2",
       "decision": "stop",
       "reasons": [
-        "评估奖励较峰值回撤 68.3%（阈值 30%）",
-        "训练进度 68% 但奖励仅为峰值的 32%（<60%），疑似停滞",
-        "approx_kl=0.4286（>0.1）",
+        "评估奖励较峰值回撤 100.0%（阈值 30%）",
+        "近期评估奖励负值占比 67%（>50%），疑似策略崩溃",
         "CPU 使用率峰值 100%（>95%）",
         "timesteps 连续 720 分钟无增长（>=60）"
       ]
@@ -1115,6 +1092,47 @@
       "reasons": [
         "CPU 使用率峰值 100%（>95%）",
         "timesteps 连续 319 分钟无增长（>=60）"
+      ]
+    },
+    {
+      "task": "traverse_slope_v1",
+      "seed": "seed00",
+      "factors": {
+        "eval_points": 45,
+        "eval_last_timesteps": 4000000,
+        "eval_last_reward": -1.0171,
+        "eval_peak_reward": 26.8397,
+        "eval_drawdown": 1.0,
+        "reward_peak_ratio": -0.0379,
+        "eval_slope_per_1e6": -20.513,
+        "eval_std_recent": 4.4491,
+        "eval_neg_ratio": 0.0667,
+        "eval_neg_ratio_recent": 0.2,
+        "approx_kl_last": 0.4286,
+        "std_last": 0.0861,
+        "ev_neg_streak": 0,
+        "value_loss_divergent": false,
+        "completed": true
+      },
+      "risks": [
+        {
+          "level": "R2",
+          "table": "eval_points",
+          "factor": "drawdown",
+          "message": "评估奖励较峰值回撤 100.0%（阈值 30%）"
+        },
+        {
+          "level": "R2",
+          "table": "tb_points",
+          "factor": "approx_kl",
+          "message": "approx_kl=0.4286（>0.1）"
+        }
+      ],
+      "level": "R2",
+      "decision": "stop",
+      "reasons": [
+        "评估奖励较峰值回撤 100.0%（阈值 30%）",
+        "approx_kl=0.4286（>0.1）"
       ]
     },
     {
@@ -1239,6 +1257,54 @@
       "reasons": [
         "approx_kl=0.4131（>0.1）"
       ]
+    },
+    {
+      "task": "traverse",
+      "seed": "seed02",
+      "factors": {
+        "report_rows": 5,
+        "verdict_fail_ratio": 1.0,
+        "success_rate_mean": 0.68,
+        "max_dev_max": 0.4083,
+        "falls_mean": 0.32,
+        "nan_count": 0,
+        "snapshot_count": 389,
+        "time_span_minutes": 401.2,
+        "timesteps_growth": 0.0,
+        "stall_minutes": 401.2,
+        "cpu_percent_max": 100.0,
+        "mem_percent_max": 78.7,
+        "swap_percent_max": 22.4,
+        "idle_minutes": 1.1,
+        "completed": true
+      },
+      "risks": [
+        {
+          "level": "R1",
+          "table": "reports",
+          "factor": "acceptance",
+          "message": "全部验收场景 verdict=fail，需人工复核"
+        },
+        {
+          "level": "R1",
+          "table": "reports",
+          "factor": "acceptance",
+          "message": "最大俯仰偏差 0.4083 rad（>0.15）"
+        },
+        {
+          "level": "R1",
+          "table": "snapshots",
+          "factor": "cpu",
+          "message": "CPU 使用率峰值 100%（>95%）"
+        }
+      ],
+      "level": "R1",
+      "decision": "watch",
+      "reasons": [
+        "全部验收场景 verdict=fail，需人工复核",
+        "最大俯仰偏差 0.4083 rad（>0.15）",
+        "CPU 使用率峰值 100%（>95%）"
+      ]
     }
   ],
   "global_risks": [],
@@ -1256,10 +1322,10 @@
   },
   "resources": {
     "present": true,
-    "sampled_rows": 13070,
-    "cpu_mean": 61.6,
+    "sampled_rows": 14322,
+    "cpu_mean": 63.9,
     "cpu_max": 100.0,
-    "mem_mean": 55.0,
+    "mem_mean": 54.5,
     "mem_max": 78.7,
     "swap_max": 22.4,
     "load1_max": 21.4,
