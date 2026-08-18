@@ -693,6 +693,7 @@ traverse_curve_v1,seed00,3900000,-3.5616,0.0,301.0
 traverse_curve_v1,seed00,3950000,-4.5901,0.0,301.0
 traverse_curve_v1,seed00,4000000,-0.1642,0.0,301.0
 traverse_flat_slope,seed00,50000,-11.9502,7.4239,284.6
+traverse_flat_slope,seed00,100000,-20.7114,0.0,62.0
 traverse_flat_slope_v1,seed00,50000,15.5477,0.1546,300.4
 traverse_flat_slope_v1,seed00,100000,-35.2258,0.0003,36.0
 traverse_flat_slope_v1,seed00,150000,-29.1405,0.0,52.0
