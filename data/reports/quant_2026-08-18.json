@@ -1,12 +1,12 @@
 {
   "today": "2026-08-18",
-  "generated_at": "2026-08-18T20:39:14",
+  "generated_at": "2026-08-18T21:06:07",
   "coverage": {
     "runs": 29,
     "eval_points": 1269,
     "tb_points": 8514,
     "snapshots": 15426,
-    "reports": 12,
+    "reports": 15,
     "costs": 3
   },
   "runs": [
@@ -31,8 +31,8 @@
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
         "report_rows": 1,
-        "verdict_fail_ratio": 0.0,
-        "success_rate_mean": 1.0,
+        "verdict_fail_ratio": 1.0,
+        "success_rate_mean": 0.0,
         "max_dev_max": 0.0145,
         "min_clear_min": 0.434,
         "falls_mean": 0.0,
@@ -84,6 +84,12 @@
         },
         {
           "level": "R1",
+          "table": "reports",
+          "factor": "acceptance",
+          "message": "全部验收场景 verdict=fail，需人工复核"
+        },
+        {
+          "level": "R1",
           "table": "snapshots",
           "factor": "cpu",
           "message": "CPU 使用率峰值 100%（>95%）"
@@ -103,6 +109,7 @@
         "当前训练尝试负奖励占比 70%（>50%），疑似崩溃",
         "策略输出标准差 0.0151（<0.05），疑似塌缩",
         "approx_kl 持续 40 个 eval 点超界（>=5），疑似数据损坏/发散",
+        "全部验收场景 verdict=fail，需人工复核",
         "CPU 使用率峰值 100%（>95%）",
         "检测到 3 次训练重启（>=2）"
       ]
@@ -495,6 +502,10 @@
         "std_last": 0.0333,
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
+        "report_rows": 1,
+        "verdict_fail_ratio": 1.0,
+        "success_rate_mean": 0.0,
+        "nan_count": 0,
         "snapshot_count": 1166,
         "time_span_minutes": 1499.3,
         "timesteps_growth": 5905888.0,
@@ -541,6 +552,12 @@
         },
         {
           "level": "R1",
+          "table": "reports",
+          "factor": "acceptance",
+          "message": "全部验收场景 verdict=fail，需人工复核"
+        },
+        {
+          "level": "R1",
           "table": "snapshots",
           "factor": "cpu",
           "message": "CPU 使用率峰值 100%（>95%）"
@@ -554,6 +571,7 @@
         "当前训练尝试负奖励占比 99%（>50%），疑似崩溃",
         "策略输出标准差 0.0（<0.01），疑似确定性退化",
         "策略输出标准差 0.0333（<0.05），疑似塌缩",
+        "全部验收场景 verdict=fail，需人工复核",
         "CPU 使用率峰值 100%（>95%）"
       ]
     },
@@ -810,6 +828,10 @@
         "std_last": 0.1069,
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
+        "report_rows": 1,
+        "verdict_fail_ratio": 1.0,
+        "success_rate_mean": 0.0,
+        "nan_count": 0,
         "snapshot_count": 1164,
         "time_span_minutes": 1498.7,
         "timesteps_growth": 3989504.0,
@@ -857,6 +879,12 @@
         },
         {
           "level": "R1",
+          "table": "reports",
+          "factor": "acceptance",
+          "message": "全部验收场景 verdict=fail，需人工复核"
+        },
+        {
+          "level": "R1",
           "table": "snapshots",
           "factor": "cpu",
           "message": "CPU 使用率峰值 100%（>95%）"
@@ -870,6 +898,7 @@
         "近期评估奖励负值占比 100%（>50%），疑似策略崩溃",
         "当前训练尝试负奖励占比 39%（>30%）",
         "approx_kl=0.3303（>0.1）",
+        "全部验收场景 verdict=fail，需人工复核",
         "CPU 使用率峰值 100%（>95%）"
       ]
     },
@@ -1277,6 +1306,10 @@
         "std_last": 0.154,
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
+        "report_rows": 1,
+        "verdict_fail_ratio": 1.0,
+        "success_rate_mean": 0.0,
+        "nan_count": 0,
         "snapshot_count": 1154,
         "time_span_minutes": 1499.3,
         "timesteps_growth": 1859584.0,
@@ -1306,6 +1339,12 @@
         },
         {
           "level": "R1",
+          "table": "reports",
+          "factor": "acceptance",
+          "message": "全部验收场景 verdict=fail，需人工复核"
+        },
+        {
+          "level": "R1",
           "table": "snapshots",
           "factor": "cpu",
           "message": "CPU 使用率峰值 100%（>95%）"
@@ -1322,6 +1361,7 @@
       "reasons": [
         "评估奖励较峰值回撤 71.2%（阈值 30%）",
         "approx_kl=0.1398（>0.1）",
+        "全部验收场景 verdict=fail，需人工复核",
         "CPU 使用率峰值 100%（>95%）",
         "timesteps 连续 720 分钟无增长（>=60）"
       ]
