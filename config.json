@@ -6,6 +6,7 @@
   "tasks": [
     "balance",
     "full_chain",
+    "full_chain_simple",
     "traverse_slope",
     "traverse_flat_slope",
     "traverse_curve"
@@ -17,6 +18,7 @@
     "full_chain_v1",
     "traverse_curve_v1",
     "traverse_curve_v2",
+    "traverse_curve_v3",
     "traverse_slope_v1",
     "traverse_flat_slope_v1"
   ],
