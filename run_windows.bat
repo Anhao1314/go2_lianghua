@@ -23,6 +23,8 @@ if /i "%~1"=="--quant" (
 ) else if /i "%~1"=="--screen" (
   ".venv\Scripts\python.exe" label_enrichment.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
   ".venv\Scripts\python.exe" data_screening.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+) else if /i "%~1"=="--annotate" (
+  ".venv\Scripts\python.exe" annotate_alerts.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
 ) else if /i "%~1"=="--monitor" (
   ".venv\Scripts\python.exe" realtime_monitor.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
 ) else (
