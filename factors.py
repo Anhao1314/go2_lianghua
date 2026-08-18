@@ -139,6 +139,99 @@ def _max_stall_minutes(df: pd.DataFrame) -> float:
     return max_dur
 
 
+def _current_stall_minutes(df: pd.DataFrame) -> float:
+    """窗口末端仍在持续的停滞段分钟数（末点步长已变化则 0）。"""
+    if df is None or len(df) < 2:
+        return 0.0
+    d = df.sort_values("time").reset_index(drop=True)
+    times = [float(t) for t in d["time"]]
+    vals = pd.to_numeric(d["timesteps"], errors="coerce").to_numpy(dtype=float)
+    start_t = None
+    for i in range(1, len(vals)):
+        if pd.isna(vals[i]) or pd.isna(vals[i - 1]):
+            start_t = None
+        elif vals[i] == vals[i - 1]:
+            if start_t is None:
+                start_t = times[i - 1]
+        else:
+            start_t = None
+    if start_t is None:
+        return 0.0
+    return (times[-1] - start_t) / 60.0
+
+
+def _spec_fall_times(snaps_df: pd.DataFrame) -> list[float]:
+    """规格回退点的时间列表：timesteps 从 >100k 回退到 <10k（与实时新 run 判定一致）。"""
+    if snaps_df is None or snaps_df.empty:
+        return []
+    d = snaps_df.sort_values("time").reset_index(drop=True)
+    times = [float(t) for t in d["time"]]
+    vals = pd.to_numeric(d["timesteps"], errors="coerce").to_numpy(dtype=float)
+    out: list[float] = []
+    prev: float | None = None
+    for t, v in zip(times, vals):
+        if pd.isna(v):
+            prev = None
+            continue
+        if prev is not None and prev > 100000.0 and v < 10000.0:
+            out.append(t)
+        prev = v
+    return out
+
+
+def _section_times(evals_ts: list[float], snaps_df: pd.DataFrame) -> list[float]:
+    """每个 eval 点的截面时间：首个（按 time 序）timesteps >= eval.timesteps 的快照时间，无则取最后快照时间。"""
+    d = snaps_df.sort_values("time").reset_index(drop=True)
+    times = [float(t) for t in d["time"]]
+    vals = pd.to_numeric(d["timesteps"], errors="coerce").to_numpy(dtype=float)
+    out: list[float] = []
+    for ets in evals_ts:
+        t = None
+        for j in range(len(vals)):
+            if not pd.isna(vals[j]) and vals[j] >= ets:
+                t = times[j]
+                break
+        out.append(t if t is not None else times[-1])
+    return out
+
+
+def _neg_ratio_current(evals_df: pd.DataFrame, snaps_df: pd.DataFrame) -> float | None:
+    """当前训练尝试（最后一次规格回退之后）的负奖励占比；无回退或无当前段时返回 None。
+
+    与实时状态机同口径：重启后只统计新尝试的 eval 点；分段边界 = 首个截面时间
+    >= 最后一次回退时间的 eval 点。
+    """
+    if evals_df is None or evals_df.empty or snaps_df is None or snaps_df.empty:
+        return None
+    falls = _spec_fall_times(snaps_df)
+    if not falls:
+        return None
+    d = evals_df.sort_values("timesteps").reset_index(drop=True)
+    rewards = pd.to_numeric(d["mean_reward"], errors="coerce")
+    ts = pd.to_numeric(d["timesteps"], errors="coerce")
+    valid = rewards.notna() & ts.notna()
+    if not valid.any():
+        return None
+    secs = _section_times([float(x) for x in ts[valid]], snaps_df)
+    boundary = next((k for k, t in enumerate(secs) if t >= falls[-1]), None)
+    if boundary is None:
+        return None
+    seg = rewards[valid].iloc[boundary:]
+    if len(seg) == 0:
+        return None
+    return round(float((seg < 0).mean()), 4)
+
+
+def _valid_eval_timesteps(evals_df: pd.DataFrame) -> list[float]:
+    """有效（mean_reward 非空）eval 点的 timesteps 列表（升序），用于 tb 因子按 eval 点对齐。"""
+    if evals_df is None or evals_df.empty:
+        return []
+    d = evals_df.sort_values("timesteps").reset_index(drop=True)
+    rew = pd.to_numeric(d["mean_reward"], errors="coerce")
+    ts = pd.to_numeric(d["timesteps"], errors="coerce")
+    return [float(x) for x in ts[rew.notna() & ts.notna()]]
+
+
 def _neg_streak(series: pd.Series) -> int:
     """从尾部开始连续为负的个数。"""
     s = pd.to_numeric(series, errors="coerce").dropna()
@@ -227,12 +320,19 @@ def eval_factors(df: pd.DataFrame, slope_window: int = 5, recent_window: int = 5
     return f
 
 
-def tb_factors(df: pd.DataFrame, vl_cfg: dict[str, Any]) -> dict[str, Any]:
+def tb_factors(
+    df: pd.DataFrame, vl_cfg: dict[str, Any], eval_timesteps: list[float] | None = None
+) -> dict[str, Any]:
     """健康度因子（tb_points：TensorBoard rollout 指标）。
 
     因子字典（公式与口径）：
     - approx_kl_last: 过滤后（(0,1] 区间）最后一个有效 approx_kl；
       脏值（<=0 或 >1.0，如日志损坏的 122376）置空不入库
+    - kl_divergent: 当前 tb 点 approx_kl 不在 (0,1]（含 NaN）即 True；
+      传入 eval_timesteps 时按 eval 点对齐（取 step<=eval 的最后 tb 行原始值），
+      与实时轮询口径一致
+    - kl_divergent_streak: 尾部连续发散计数（按 eval 点对齐时以 eval 点计，
+      否则以 tb 行计）
     - std_last: 最后一个 rollout 策略输出 std（与 eval_std_recent 不同源）
     - ev_neg_streak: 从尾部开始连续为负的 explained_variance 个数（非历史最长）
     - value_loss_divergent: value_loss 连续上升且远超前期均值的发散判定
@@ -242,10 +342,33 @@ def tb_factors(df: pd.DataFrame, vl_cfg: dict[str, Any]) -> dict[str, Any]:
         return f
     d = df.sort_values("step").reset_index(drop=True)
     # PPO approx_kl 合理区间为 (0, 1]；0/负值/超界（如日志损坏的 122376）视为脏值
-    kl = pd.to_numeric(d["approx_kl"], errors="coerce").dropna()
+    raw_kl = pd.to_numeric(d["approx_kl"], errors="coerce")
+    kl = raw_kl.dropna()
     kl = kl[(kl > 0.0) & (kl <= 1.0)]
     if len(kl):
         f["approx_kl_last"] = round(float(kl.iloc[-1]), 4)
+    if eval_timesteps:
+        # 按 eval 点对齐：每个 eval 点取 step<=eval.timesteps 的最后 tb 行原始 kl
+        # （NaN 也计发散，与实时状态机逐轮口径一致）
+        steps_s = pd.to_numeric(d["step"], errors="coerce")
+        mask = steps_s.notna()
+        steps_arr = steps_s[mask].to_numpy(dtype=float)
+        kls_arr = raw_kl[mask].to_numpy(dtype=float)
+        divs: list[bool] = []
+        for ets in sorted(float(x) for x in eval_timesteps):
+            idx = int(np.searchsorted(steps_arr, ets, side="right")) - 1
+            k = kls_arr[idx] if idx >= 0 else float("nan")
+            divs.append(not (0.0 < k <= 1.0))
+    else:
+        divs = [bool(v) for v in (~((raw_kl > 0.0) & (raw_kl <= 1.0))).tolist()]
+    f["kl_divergent"] = bool(divs[-1])
+    streak = 0
+    for v in reversed(divs):
+        if v:
+            streak += 1
+        else:
+            break
+    f["kl_divergent_streak"] = streak
     std = pd.to_numeric(d["std"], errors="coerce").dropna()
     if len(std):
         f["std_last"] = round(float(std.iloc[-1]), 4)
@@ -300,6 +423,10 @@ def snapshot_factors(df: pd.DataFrame, idle_cfg: dict[str, Any]) -> dict[str, An
     if ts.notna().any():
         f["timesteps_growth"] = float(ts.iloc[-1] - ts.iloc[0])
         f["stall_minutes"] = round(_max_stall_minutes(d), 1)
+        # current_stall_minutes: 当前连续停滞（恢复即归零），与 stall_minutes（max-so-far）并存
+        f["current_stall_minutes"] = round(_current_stall_minutes(d), 1)
+        # restart_count: 规格回退（timesteps 从 >100k 回退到 <10k）次数
+        f["restart_count"] = len(_spec_fall_times(d))
     for col, key in (
         ("cpu_percent", "cpu_percent_max"),
         ("mem_percent", "mem_percent_max"),
@@ -319,14 +446,25 @@ def run_factors(
 ) -> dict[str, Any]:
     """汇总单个 (task, seed) 的全部因子（不含 task/seed 本身）。"""
     f: dict[str, Any] = {}
+    evals_df = _filter(tables.get("eval_points"), task, seed)
+    tb_df = _filter(tables.get("tb_points"), task, seed)
+    snaps_df = _filter(tables.get("snapshots"), task, seed)
     f.update(eval_factors(
-        _filter(tables.get("eval_points"), task, seed),
+        evals_df,
         slope_window=int(cfg["risk"]["eval_slope"]["window"]),
         recent_window=int(cfg["risk"]["neg_ratio"]["recent_window"]),
     ))
-    f.update(tb_factors(_filter(tables.get("tb_points"), task, seed), cfg["risk"]["value_loss"]))
+    # kl_divergent 按 eval 点对齐（与实时轮询口径一致）：每个有效 eval 点取
+    # step<=eval.timesteps 的最后 tb 行原始 approx_kl 判定发散
+    f.update(tb_factors(tb_df, cfg["risk"]["value_loss"],
+                        eval_timesteps=_valid_eval_timesteps(evals_df)))
     f.update(acceptance_factors(_filter(tables.get("reports"), task, seed)))
-    f.update(snapshot_factors(_filter(tables.get("snapshots"), task, seed), cfg["risk"]["resources"]["idle"]))
+    f.update(snapshot_factors(snaps_df, cfg["risk"]["resources"]["idle"]))
+    # neg_ratio_current: 当前训练尝试（最后一次规格回退之后）的负奖励占比；
+    # 无回退/无快照时退化为全部尝试口径（eval_neg_ratio）；无任何因子数据时跳过
+    if f:
+        cur_ratio = _neg_ratio_current(evals_df, snaps_df)
+        f["neg_ratio_current"] = cur_ratio if cur_ratio is not None else f.get("eval_neg_ratio")
     runs = tables.get("runs")
     if runs is not None and len(runs) and f:
         row = runs[(runs["task"] == task) & (runs["seed"] == seed)]
@@ -376,6 +514,16 @@ def run_risk_items(f: dict[str, Any], cfg: dict[str, Any]) -> list[RiskItem]:
         add("R1", "eval_points", "neg_ratio",
             f"评估奖励负值占比 {f['eval_neg_ratio']:.0%}（>{r['neg_ratio']['watch']:.0%}）")
 
+    # 当前训练尝试（重启后）负奖励占比：与 eval_neg_ratio 同阈值，重启感知
+    neg_cur = f.get("neg_ratio_current")
+    if neg_cur is not None:
+        if neg_cur > r["neg_ratio"]["severe"]:
+            add("R2", "eval_points", "neg_ratio_current",
+                f"当前训练尝试负奖励占比 {neg_cur:.0%}（>{r['neg_ratio']['severe']:.0%}），疑似崩溃")
+        elif neg_cur > r["neg_ratio"]["watch"]:
+            add("R1", "eval_points", "neg_ratio_current",
+                f"当前训练尝试负奖励占比 {neg_cur:.0%}（>{r['neg_ratio']['watch']:.0%}）")
+
     # 评估内策略输出 std 塌缩（与 tb_points std_last 不同源；评估点数不足 5 不判）
     eval_pts = f.get("eval_points", 0)
     esr = f.get("eval_std_recent")
@@ -400,6 +548,15 @@ def run_risk_items(f: dict[str, Any], cfg: dict[str, Any]) -> list[RiskItem]:
             add("R2", "tb_points", "approx_kl", f"approx_kl={kl}（>{r['approx_kl']['warn']}）")
         elif kl > r["approx_kl"]["watch"]:
             add("R1", "tb_points", "approx_kl", f"approx_kl={kl}（>{r['approx_kl']['watch']}）")
+
+    # KL 发散：当前 tb 点 approx_kl 不在 (0,1]（含 NaN），按 eval 点连续计数
+    kl_streak = f.get("kl_divergent_streak", 0)
+    if kl_streak >= r["kl_divergent"]["r3"]:
+        add("R3", "tb_points", "kl_divergent",
+            f"approx_kl 持续 {kl_streak} 个 eval 点超界（>={r['kl_divergent']['r3']}），疑似数据损坏/发散")
+    elif kl_streak >= r["kl_divergent"]["r2"]:
+        add("R2", "tb_points", "kl_divergent",
+            f"approx_kl 持续 {kl_streak} 个 eval 点超界（>={r['kl_divergent']['r2']}）")
 
     if f.get("ev_neg_streak", 0) >= r["explained_variance"]["neg_points"]:
         add("R2", "tb_points", "explained_variance",
@@ -450,6 +607,24 @@ def run_risk_items(f: dict[str, Any], cfg: dict[str, Any]) -> list[RiskItem]:
         add("R1", "snapshots", "stall",
             f"timesteps 连续 {stall:.0f} 分钟无增长（>={r['stall_minutes']['watch']}）")
 
+    # 当前连续停滞（恢复即归零）：与 stall（max-so-far）并存，同阈值，仅未完成 run
+    cur_stall = f.get("current_stall_minutes", 0.0)
+    if not f.get("completed") and cur_stall >= r["stall_minutes"]["warn"]:
+        add("R2", "snapshots", "stall_current",
+            f"当前连续停滞 {cur_stall:.0f} 分钟（>={r['stall_minutes']['warn']}）")
+    elif not f.get("completed") and cur_stall >= r["stall_minutes"]["watch"]:
+        add("R1", "snapshots", "stall_current",
+            f"当前连续停滞 {cur_stall:.0f} 分钟（>={r['stall_minutes']['watch']}）")
+
+    # 训练重启：规格回退（timesteps 从 >100k 回退到 <10k）次数
+    rc = f.get("restart_count", 0)
+    if rc >= r["restart_count"]["r3"]:
+        add("R3", "snapshots", "restart",
+            f"检测到 {rc} 次训练重启（>={r['restart_count']['r3']}），训练反复崩溃")
+    elif rc >= r["restart_count"]["r2"]:
+        add("R2", "snapshots", "restart",
+            f"检测到 {rc} 次训练重启（>={r['restart_count']['r2']}）")
+
     idle = f.get("idle_minutes", 0.0)
     if not f.get("completed") and idle >= r["resources"]["idle"]["minutes"]:
         add("R2", "snapshots", "idle",
@@ -465,8 +640,8 @@ def run_risk_items(f: dict[str, Any], cfg: dict[str, Any]) -> list[RiskItem]:
 def decide(f: dict[str, Any], risks: list[RiskItem], cfg: dict[str, Any]) -> tuple[str, list[str]]:
     """由风险项给出建议：continue / watch / stop / tune / resize。
 
-    矩阵：R3 -> stop；R2 -> 按触发因子细分（回撤/停滞/NaN/负奖励崩溃 早停，
-    健康度调参，资源类重调度）；R1 -> watch；R0 -> continue。
+    矩阵：R3 -> stop；R2 -> 按触发因子细分（回撤/停滞/NaN/负奖励崩溃/反复重启 早停，
+    健康度/KL 发散 调参，资源/当前停滞 重调度）；R1 -> watch；R0 -> continue。
     """
     level = max_level(risks)
     msgs = [i.message for i in risks]
@@ -476,11 +651,11 @@ def decide(f: dict[str, Any], risks: list[RiskItem], cfg: dict[str, Any]) -> tup
         if f.get("eval_drawdown", 0.0) > cfg["risk"]["drawdown"]["stop"]:
             return "stop", msgs
         factors = {i.factor for i in risks if i.level == "R2"}
-        if factors & {"value_loss", "approx_kl", "explained_variance"}:
+        if factors & {"value_loss", "approx_kl", "explained_variance", "kl_divergent"}:
             return "tune", msgs
-        if factors & {"swap", "mem", "cpu", "stall", "idle"}:
+        if factors & {"swap", "mem", "cpu", "stall", "idle", "stall_current"}:
             return "resize", msgs
-        if factors & {"stagnation", "nan", "neg_ratio"}:
+        if factors & {"stagnation", "nan", "neg_ratio", "neg_ratio_current", "restart"}:
             return "stop", msgs
         return "watch", msgs
     if level == "R1":

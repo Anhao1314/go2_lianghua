@@ -2,16 +2,16 @@
 
 ## 一、筛选结果概览
 
-- 总 run 数：28；good 14 / insufficient 14 / anomalous 0
+- 总 run 数：29；good 16 / insufficient 13 / anomalous 0
 
 ## 二、逐规则通过率
 
 | 规则 | 说明 | 通过 | 失败 |
 |---|---|---|---|
-| rule1 | eval 点数 ≥ 阈值 | 14 | 14 |
-| rule2 | 训练规模 ≥ 阈值 | 18 | 10 |
-| rule3 | 无解析异常（清洗后 KL / NaN） | 28 | 0 |
-| rule4 | 曲线可辨识（std > 阈值） | 28 | 0 |
+| rule1 | eval 点数 ≥ 阈值 | 16 | 13 |
+| rule2 | 训练规模 ≥ 阈值 | 19 | 10 |
+| rule3 | 无解析异常（清洗后 KL / NaN） | 29 | 0 |
+| rule4 | 曲线可辨识（std > 阈值） | 29 | 0 |
 
 ## 三、异常/不足 run 归档
 
@@ -28,7 +28,6 @@
 | traverse_flat_slope | seed00 | insufficient | rule1: eval 点数 0 < 10 | nan | 0 |
 | traverse_flat_slope | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | traverse_flat_slope | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
-| traverse_slope | seed00 | insufficient | rule1: eval 点数 3 < 10 | nan | 3 |
 | traverse_slope | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | traverse_slope | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 
@@ -41,17 +40,13 @@
 
 | 配置 | 训练集 | 测试集 | R2 | MAE | 样本(n_train/n_test) |
 |---|---|---|---|---|---|
-| A | screened | **full**（LOO 无泄漏） | -5.1764 | 258438.0 | 5/18 |
-| B | full | **full** | -2.692 | 181002.4 | 18/18 |
+| A | screened | **full**（LOO 无泄漏） | 0.1749 | 109269.3 | 6/18 |
+| B | full | **full** | -10.563 | 280281.4 | 18/18 |
 
 ### verdict 分类
 
-- A（screened 训练，full 测试 LOO 无泄漏）：样本不足未训练（训练 pass/fail = 2/1，测试 n=0）
-- B（full 训练，full 测试 LOO）：accuracy 0.25（pass/fail = 2/2）
-
-## ⚠️ SURVIVORSHIP BIAS WARNING
-
-筛选训练（A）在 full 测试集上的表现差于全量训练（B）：筛选可能引入幸存者偏差，模型不应只在 clean 数据上评估。
+- A（screened 训练，full 测试 LOO 无泄漏）：样本不足未训练（训练 pass/fail = 1/5，测试 n=0）
+- B（full 训练，full 测试 LOO）：accuracy 0.5（pass/fail = 2/2）
 
 ## 五、原则
 

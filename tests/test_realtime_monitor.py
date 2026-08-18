@@ -113,7 +113,13 @@ class RealtimeMonitorTest(unittest.TestCase):
         self.assertAlmostEqual(f["eval_drawdown"], 0.2, places=4)  # (100-80)/100
         self.assertAlmostEqual(f["eval_neg_ratio_recent"], 2 / 3, places=4)
         self.assertEqual(f["stall_minutes"], 0.0)
+        self.assertEqual(f["current_stall_minutes"], 0.0)
         self.assertEqual(f["approx_kl_last"], 0.02)
+        self.assertEqual(f["kl_divergent"], False)
+        self.assertEqual(f["kl_divergent_streak"], 0)
+        self.assertEqual(f["restart_count"], 0)
+        self.assertEqual(f["eval_neg_ratio"], 0.0)  # 两轮奖励 100/80 均为正
+        self.assertEqual(f["neg_ratio_current"], 0.0)
         self.assertEqual(f["nan_count"], 0)
 
     # 2. 峰值跨轮保持（先升后降不重置）
@@ -160,9 +166,10 @@ class RealtimeMonitorTest(unittest.TestCase):
             patch("realtime_monitor.requests.get",
                   side_effect=mock_get_side_effect(state_payload([s2]))),
         ):
-            self.mon.poll_once()  # timesteps 变化：归零
+            self.mon.poll_once()  # timesteps 变化：current 归零，max 持久
         f = self.mon.state[("balance", "seed00")]["last_factors"]
-        self.assertEqual(f["stall_minutes"], 0.0)
+        self.assertEqual(f["stall_minutes"], 30.0)  # max-so-far 持久
+        self.assertEqual(f["current_stall_minutes"], 0.0)  # 当前停滞归零
 
     # 4. 冷却：同因子 R2 三轮只发一条
     def test_cooldown(self):
@@ -231,8 +238,10 @@ class RealtimeMonitorTest(unittest.TestCase):
             self.mon.poll_once()
         st = self.mon.state[("balance", "seed00")]
         self.assertEqual(st["peak_reward"], 10.0)  # 已重置，不再是 100
-        self.assertEqual(st["poll_count"], 1)
-        # alive False->True 也重置
+        self.assertEqual(st["poll_count"], 1)  # 当前尝试计数已重置
+        self.assertEqual(st["total_poll_count"], 2)  # 全部尝试计数保留
+        self.assertEqual(st["restart_count"], 1)  # 规格回退 +1
+        # alive False->True 也重置（不计 restart_count）
         with patch("realtime_monitor.requests.get",
                    side_effect=mock_get_side_effect(state_payload(
                        [seed_payload(timesteps=6000, eval_reward=12.0, alive=True)]))):
@@ -240,6 +249,7 @@ class RealtimeMonitorTest(unittest.TestCase):
             self.mon.poll_once()
         st = self.mon.state[("balance", "seed00")]
         self.assertEqual(st["peak_reward"], 12.0)
+        self.assertEqual(st["restart_count"], 1)
 
     # 9. stale/NaN 补充触发
     def test_stale_nan_triggers(self):

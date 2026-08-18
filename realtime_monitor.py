@@ -144,18 +144,30 @@ class RealtimeMonitor:
             "prev_timesteps": None,
             "last_timesteps": None,
             "stall_start_ts": None,
-            "neg_count": 0,
+            "neg_count": 0,            # 当前训练尝试的负奖励/轮询计数（重启重置）
             "poll_count": 0,
+            "total_neg_count": 0,      # 全部尝试累计（重启不重置，与离线 eval_neg_ratio 同口径）
+            "total_poll_count": 0,
+            "restart_count": 0,        # 规格回退（timesteps >100k -> <10k）次数
+            "max_stall_minutes": 0.0,  # stall_minutes：窗口内最大停滞（max-so-far，持久）
+            "last_valid_kl": None,     # 最近一次有效 approx_kl（当前点损坏时回退）
+            "kl_divergent": False,     # 当前 tb 点 KL 超界（含 NaN/缺失）标志
+            "kl_divergent_streak": 0,  # 连续发散的 eval 轮数（按 eval 轮次计数）
             "prev_alive": None,
             "last_notify": {},  # factor -> (timestamp, level)
             "last_factors": {},
         }
 
     def update_state(self, task: str, seed_id: str, seed: dict[str, Any]) -> dict[str, Any]:
-        """维护单 run 内存状态：峰值、步数、停滞起点、负奖励计数、alive 沿。
+        """维护单 run 内存状态：峰值、步数、停滞、负奖励计数、KL 状态、alive 沿。
 
-        新 run 判定：步数回退（prev>100k 且 cur<10k）或 alive False->True，
-        触发后整体重置（峰值/计数/冷却/停滞全部清零）。
+        重启判定：
+          - 规格回退：prev>100k 且 cur<10k（restart_count +1，与离线同口径）；
+          - alive False->True（重置当前尝试，但不计 restart_count）。
+        重启时保留跨重启状态：全部尝试计数（total_*）、restart_count、
+        last_valid_kl 与 kl_divergent_streak（与离线全窗口口径一致）；
+        重置当前尝试状态：峰值、负奖励计数、停滞、冷却历史。
+        stall_minutes 为 max-so-far（持久），current_stall_minutes 恢复即归零。
         """
         key = (task, seed_id)
         st = self.state.get(key)
@@ -165,10 +177,19 @@ class RealtimeMonitor:
         cur_ts = _to_float(seed.get("timesteps")) or 0.0
         alive = bool(seed.get("alive", True))
         prev_ts = st["prev_timesteps"]
-        if (prev_ts is not None and prev_ts > 100000 and cur_ts < 10000) or (
-            st["prev_alive"] is False and alive
-        ):
+        is_fall = prev_ts is not None and prev_ts > 100000 and cur_ts < 10000
+        if is_fall or (st["prev_alive"] is False and alive):
+            carry = {
+                "total_neg_count": st["total_neg_count"],
+                "total_poll_count": st["total_poll_count"],
+                "restart_count": st["restart_count"] + (1 if is_fall else 0),
+                "last_valid_kl": st["last_valid_kl"],
+                "kl_divergent": st["kl_divergent"],
+                "kl_divergent_streak": st["kl_divergent_streak"],
+                "max_stall_minutes": st["max_stall_minutes"],  # max-so-far 跨重启持久
+            }
             st = self._new_state()
+            st.update(carry)
             self.state[key] = st
         st["prev_timesteps"] = cur_ts
         st["prev_alive"] = alive
@@ -177,8 +198,10 @@ class RealtimeMonitor:
             if reward > st["peak_reward"]:
                 st["peak_reward"] = reward
             st["poll_count"] += 1
+            st["total_poll_count"] += 1
             if reward < 0:
                 st["neg_count"] += 1
+                st["total_neg_count"] += 1
         now = time.time()
         if st["last_timesteps"] is not None and cur_ts == st["last_timesteps"]:
             if st["stall_start_ts"] is None:
@@ -186,7 +209,22 @@ class RealtimeMonitor:
         else:
             st["stall_start_ts"] = None
         st["last_timesteps"] = cur_ts
+        if st["stall_start_ts"] is not None:
+            cur_stall = (now - st["stall_start_ts"]) / 60.0
+            if cur_stall > st["max_stall_minutes"]:
+                st["max_stall_minutes"] = cur_stall
         return st
+
+    def update_kl_state(self, st: dict[str, Any], tb_kl: Any) -> None:
+        """按 tb 行粒度维护 KL 状态：当前点有效则更新 last_valid_kl 并清发散标志，
+        损坏（NaN/<=0/>1）或缺失则保持 last_valid_kl 并置发散标志。
+        kl_divergent_streak 由 compute_factors 按 eval 轮次计数（规则口径）。
+        """
+        kl = _to_float(tb_kl)
+        valid = kl is not None and (0.0 < kl <= 1.0)
+        st["kl_divergent"] = not valid
+        if valid:
+            st["last_valid_kl"] = kl
 
     def _total_steps(self, task: str) -> float:
         per = self.mon.get("total_steps") or {}
@@ -205,15 +243,22 @@ class RealtimeMonitor:
         peak_valid = peak > 0
         drawdown = min(1.0, (peak - reward) / peak) if peak_valid else 0.0
         history = [h for h in (seed.get("history") or []) if isinstance(h, (int, float))]
+        # 与离线同口径：仅取 history 尾部 recent_window 点（API 保留 20 点）
+        recent_window = max(int(self.risk.get("neg_ratio", {}).get("recent_window", 5)), 1)
+        recent = history[-recent_window:]
         neg_recent = (
-            round(sum(1 for h in history if h < 0) / len(history), 4) if history else None
+            round(sum(1 for h in recent if h < 0) / len(recent), 4) if recent else None
         )
-        kl = _to_float(seed.get("tb_kl"))
-        if kl is not None and not (0.0 < kl <= 1.0):
-            kl = None  # 复用 factors.py 的 approx_kl 合理性过滤
+        # KL 状态（last_valid_kl / kl_divergent）由 update_kl_state 按 tb 行粒度维护；
+        # 发散连续数按 eval 轮次计数（与离线 eval 对齐口径一致）
+        if st.get("kl_divergent", False):
+            st["kl_divergent_streak"] += 1
+        else:
+            st["kl_divergent_streak"] = 0
         stall = 0.0
         if st["stall_start_ts"] is not None:
             stall = (time.time() - st["stall_start_ts"]) / 60.0
+        max_stall = max(st["max_stall_minutes"], stall)
         total = self._total_steps(task)
         f: dict[str, Any] = {
             "eval_last_reward": round(reward, 4),
@@ -222,13 +267,22 @@ class RealtimeMonitor:
             "reward_peak_ratio": round(reward / peak, 4) if peak_valid else None,
             "progress_ratio": round(cur_ts / total, 4) if total > 0 else None,
             "eval_neg_ratio_recent": neg_recent,
-            "eval_neg_ratio": round(st["neg_count"] / st["poll_count"], 4)
+            "eval_neg_ratio": round(st["total_neg_count"] / st["total_poll_count"], 4)
+            if st["total_poll_count"]
+            else None,
+            "neg_ratio_current": round(st["neg_count"] / st["poll_count"], 4)
             if st["poll_count"]
             else None,
-            "approx_kl_last": round(kl, 4) if kl is not None else None,
+            "approx_kl_last": round(st["last_valid_kl"], 4)
+            if st["last_valid_kl"] is not None
+            else None,
+            "kl_divergent": bool(st.get("kl_divergent", False)),
+            "kl_divergent_streak": st["kl_divergent_streak"],
             "std_last": _to_float(seed.get("tb_std")),
             "value_loss_divergent": False,  # API 无历史，恒 False
-            "stall_minutes": round(stall, 1),
+            "stall_minutes": round(max_stall, 1),
+            "current_stall_minutes": round(stall, 1),
+            "restart_count": st["restart_count"],
             "idle_minutes": 0,
             "cpu_percent_max": _to_float(resources.get("cpu_percent")),
             "mem_percent_max": _to_float(resources.get("mem_percent")),
@@ -387,6 +441,7 @@ class RealtimeMonitor:
             merged = {**(viewers_by_key.get(key) or {}), **seed}
             task, sid = self._task_seed(key)
             st = self.update_state(task, sid, merged)
+            self.update_kl_state(st, merged.get("tb_kl"))
             f = self.compute_factors(task, merged, resources, st)
             risks = self._supplement_risks(merged, f, factors.run_risk_items(f, self.cfg))
             level = factors.max_level(risks)

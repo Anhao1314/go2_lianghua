@@ -1,6 +1,7 @@
 # MATH_LIBRARY：公式与因子口径库（go2w-quant）
 
 > 2026-08-18 全量公式审计结论：1 个关键 bug（screening Config A 数据泄漏）已修复、4 处命名歧义已澄清、1 个缺失因子（eval_neg_ratio）已补齐。
+> 2026-08-18 第二轮（P0 后续）：基于 consistency_check 差异统一离线/实时因子口径，新增 4 因子（kl_divergent / current_stall_minutes / restart_count / neg_ratio_current）。
 > 本文是 factors/quant/modeling/label_enrichment/data_screening/backtest_* 全部公式的权威口径说明；代码注释与本文不一致时以本文为准。
 
 ## 一、审计状态与修复记录（2026-08-18）
@@ -13,8 +14,13 @@
 | 命名歧义 3 | `eval_std_recent` 易被理解为 mean_reward 的 std，实为 **std_reward 列（评估内策略输出 std）最近 5 点均值** | 已写清 docstring，并激活为风控规则 |
 | 命名歧义 4 | `eval_slope_per_1e6` 原为首末差分，噪声敏感 | 改为最近 N 点最小二乘斜率（默认 N=5） |
 | 缺失因子 | 崩溃早期信号缺失：drawdown 需等奖励跌破 50% 峰值才报警 | 新增 `eval_neg_ratio` / `eval_neg_ratio_recent`（负奖励占比），先于回撤报警 |
+| 口径统一 1 | `eval_neg_ratio_recent`：实时取全部 history(20) vs 离线 recent_window=5（24/80 不一致） | 实时改为 `history[-recent_window:]`，与离线一致 |
+| 口径统一 2 | `approx_kl_last`：实时当前点损坏→None vs 离线回退窗口最后有效值 | 实时状态机新增 `last_valid_kl`（损坏回退）+ `kl_divergent`/`kl_divergent_streak` |
+| 口径统一 3 | `stall_minutes`：离线 max-so-far（持久）vs 实时当前（恢复归零），80/80 语义差异 | 实时 `stall_minutes` 改 max-so-far（`max_stall_minutes` 状态）；新增 `current_stall_minutes`（归零口径） |
+| 口径统一 4 | `eval_neg_ratio`：实时重启时重置 vs 离线全部尝试混合（38/80 不一致，5 次回退） | 实时新增 `total_neg_count/total_poll_count`（重启不重置）；原计数迁为 `neg_ratio_current`（当前尝试） |
+| 新增因子 | 重启/数据损坏信号缺失 | 新增 `kl_divergent`（KL 超界，NaN 计发散）、`restart_count`（规格回退 >100k→<10k）、`neg_ratio_current`（重启分段） |
 
-## 二、因子公式总表（六类 30 因子 + 富化标签）
+## 二、因子公式总表（六类 34 因子 + 富化标签）
 
 ### 收敛/稳定（eval_points，每 50k 步评估）
 | 因子 | 公式 | 说明 |
@@ -28,6 +34,7 @@
 | eval_std_recent | mean(tail(5, std_reward)) | **std_reward 列均值**（评估内策略输出 std），非 mean_reward 的 std |
 | eval_neg_ratio | mean(mean_reward < 0)，全部有效点 | 负奖励占比 |
 | eval_neg_ratio_recent | mean(mean_reward < 0)，最近 5 点 | 崩溃早期信号，先于回撤报警 |
+| neg_ratio_current | mean(mean_reward < 0)，最后一次规格回退之后的 eval 点 | 当前训练尝试占比（重启感知）；无回退时 = eval_neg_ratio |
 | progress_ratio | eval_last_timesteps / total_steps | 训练进度 |
 
 ### 健康（tb_points，TensorBoard rollout）
@@ -37,12 +44,14 @@
 | std_last | 最后一个 rollout 策略输出 std | 与 eval_std_recent 不同源（rollout vs 评估） |
 | ev_neg_streak | 从尾部开始连续为负的 explained_variance 个数 | **非历史最长** |
 | value_loss_divergent | 尾部连续上升 ≥10 点且末值 > 前 20 点均值 ×2 | 发散判定 |
+| kl_divergent | 当前 tb 点 approx_kl 不在 (0,1]（含 NaN）→ True | 数据损坏/发散标志；按 eval 点对齐（step<=eval 的最后 tb 行原始值） |
+| kl_divergent_streak | 尾部连续发散的 eval 点数（无对齐时按 tb 行数） | NaN 也计发散，与实时逐轮口径一致 |
 
 ### 验收（reports）
 report_rows / verdict_fail_ratio / success_rate_mean / max_dev_max / min_clear_min / falls_mean / nan_count（NaN 行数）。
 
 ### 资源（snapshots，30s 采样）
-snapshot_count / time_span_minutes（起止时间差）/ timesteps_growth / stall_minutes（timesteps 无增长持续分钟）/ idle_minutes（CPU 低于阈值持续分钟）/ cpu_percent_max / mem_percent_max / swap_percent_max。
+snapshot_count / time_span_minutes（起止时间差）/ timesteps_growth / stall_minutes（窗口内最大停滞 max-so-far，持久）/ current_stall_minutes（当前连续停滞，恢复归零）/ restart_count（规格回退 >100k→<10k 次数）/ idle_minutes（CPU 低于阈值持续分钟）/ cpu_percent_max / mem_percent_max / swap_percent_max。
 
 ### 成本（costs）
 daily_cost / weekly_cost / monthly_cost / total_cost（元）、cache_rate = cached/(input+cached) token 缓存率。
@@ -62,7 +71,11 @@ daily_cost / weekly_cost / monthly_cost / total_cost（元）、cache_rate = cac
 
 - **回撤裁剪**：`eval_drawdown = clip((peak - last) / peak, 0, 1)`；末值为负时旧公式产出 >1 的伪回撤（1.1884、1.735），已裁剪。
 - **最小二乘斜率**：对最近 N 点 (timesteps, mean_reward) 做 1 阶多项式拟合，斜率 ×1e6；比首末差分抗噪（审计案例：首末 7.5e6 → LS -1e6）。
-- **KL 合理性过滤**：`0 < approx_kl <= 1`（PPO 域内合理区间）；日志损坏值（122376 等）置空不入库、不进因子。
+- **KL 合理性过滤**：`0 < approx_kl <= 1`（PPO 域内合理区间）；日志损坏值（122376 等）置空不入库。
+- **KL 发散**：当前 tb 点（按 eval 点对齐）approx_kl 不在 (0,1]（**含 NaN**）即 `kl_divergent=True`；`kl_divergent_streak` = 尾部连续发散计数，≥3 个 eval 点 → R2，≥5 → R3。实时状态机在每轮轮询维护 last_valid_kl 与 streak，当前点损坏时 `approx_kl_last` 回退 last_valid_kl。
+- **当前停滞**：`current_stall_minutes` = 窗口/轮询末端仍在持续的停滞段分钟数（timesteps 变化即归零）；与 `stall_minutes`（max-so-far，持久）并存，规则复用 watch=30/warn=60。
+- **重启计数**：`restart_count` = timesteps 从 >100k 回退到 <10k 的次数（规格定义，如 1384448→12288 不计）；≥2 → R2，≥4 → R3。离线从 snapshots 序列检测，实时状态机在回退轮 +1 并重置当前尝试计数器（total_* 不重置）。
+- **当前尝试占比**：`neg_ratio_current` = 最后一次重启点之后 eval 点的负奖励占比（离线以最后回退行的截面时间为分段边界）；无回退/无快照时 = `eval_neg_ratio`。
 - **负奖励占比**：`eval_neg_ratio = mean(reward < 0)`；recent 版取最近 5 点。balance/seed00 = 37/80 = 0.4625（R1），recent = 1.0（R2 → stop）。
 - **停滞判定**：进度 ≥60% 且 最终奖励 < 峰值 ×60% → R2 stagnation。
 - **stall/idle**：timesteps 无增长持续 ≥30/60 分钟（watch/warn）；CPU <20% 且训练未完成持续 ≥60 分钟疑似卡死。
@@ -89,6 +102,10 @@ daily_cost / weekly_cost / monthly_cost / total_cost（元）、cache_rate = cac
 | budget | 80% | 100% / 150% | 日/周/月预算 |
 | cache_rate_watch | 0.30 | - | token 缓存率 |
 | eval_slope.window | 5 | - | 斜率窗口（P1b） |
+| kl_divergent | - | r2 3 / r3 5 | KL 超界连续 eval 点数 |
+| restart_count | - | r2 2 / r3 4 | 规格回退次数 |
+| neg_ratio_current | 0.30 | severe 0.50 | 复用 neg_ratio 阈值（当前尝试） |
+| current_stall_minutes | 30 | 60 | 复用 stall_minutes 阈值（当前停滞） |
 
 ## 五、命名歧义澄清表（不重命名）
 
@@ -100,3 +117,7 @@ daily_cost / weekly_cost / monthly_cost / total_cost（元）、cache_rate = cac
 | eval_slope_per_1e6 | 最近 N 点最小二乘斜率 ×1e6 | 首末差分斜率 |
 | best_step_ratio | best_step / 观测窗口末 timesteps | best_step / total_steps |
 | collapse_ratio | collapse_step / 观测窗口末 timesteps | 塌缩段长度占比 |
+| stall_minutes | 窗口内最大停滞（max-so-far，持久） | 当前停滞（恢复归零）——后者为 current_stall_minutes |
+| eval_neg_ratio | 全部尝试混合负奖励占比（重启不重置） | 当前尝试占比——后者为 neg_ratio_current |
+| kl_divergent | 当前 tb 点 KL 不在 (0,1]，NaN 也计发散 | 仅 >1.0 才发散（NaN/缺失同样发散） |
+| restart_count | 规格回退（>100k → <10k）次数 | 任意步数回退（12288 等小回退不计） |
