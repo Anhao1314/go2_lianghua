@@ -45,7 +45,7 @@
 
 ### verdict 分类
 
-- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.7647（训练 pass/fail = 3/11，测试 n=17）
+- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.8667（训练 pass/fail = 2/12，测试 n=15）
 - B（full 训练，full 测试 LOO）：accuracy 0.882（pass/fail = 3/14）
 
 ## ⚠️ SURVIVORSHIP BIAS WARNING

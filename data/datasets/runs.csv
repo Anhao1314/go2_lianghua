@@ -16,7 +16,7 @@ traverse_curve,seed00,cloud,completed,0.0,False,4000000.0,4.0,,,,fail,0.0,104332
 traverse_curve,seed01,cloud,external,0.0,False,,,,,,,,19120.565873146057
 traverse_curve,seed02,cloud,external,0.0,False,,,,,,,,19120.565873146057
 traverse_curve_v1,seed00,,,,True,,,,,,fail,0.0,
-traverse_curve_v2,seed00,,,,True,,,,,,pass,1.0,
+traverse_curve_v2,seed00,,,,True,,,,,,fail,0.0,
 traverse_curve_v3,seed00,,,,True,,,,,,fail,0.0,
 traverse_flat_slope,seed00,cloud,external,0.0,False,4000000.0,4.0,,,,,,104365.72848129272
 traverse_flat_slope,seed01,cloud,external,0.0,False,,,,,,,,19153.72599887848
