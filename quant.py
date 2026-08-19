@@ -20,6 +20,7 @@ from datetime import date as _Date
 import pandas as pd
 
 from collector import PROJECT_ROOT, load_config
+from data_utils import load_runs_merged
 from factors import DECISIONS, QuantResult, compute_all
 from schema import validate_frame
 
@@ -42,6 +43,12 @@ def load_tables(cfg: dict) -> dict[str, pd.DataFrame]:
     out_dir = pathlib.Path(cfg["output_dir"])
     tables: dict[str, pd.DataFrame] = {}
     for table in FACTOR_TABLES:
+        if table == "runs":
+            df = load_runs_merged(cfg)
+            if df is not None:
+                validate_frame(df, "runs")
+                tables[table] = df
+            continue
         df = read_table(out_dir, table)
         if df is not None:
             tables[table] = df

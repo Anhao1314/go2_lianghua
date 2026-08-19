@@ -22,6 +22,7 @@ import pandas as pd
 
 from collector import PROJECT_ROOT, load_config
 from factors import compute_all
+from data_utils import load_labels_merged
 from quant import load_tables
 
 # 标签（y）与来源列；其余来自 labels.csv 的列（如早期版的 final_reward）不属于标签
@@ -31,11 +32,11 @@ Y_COLUMNS = ("completed", "verdict", "success_rate", "duration_seconds", "label_
 EXCLUDED_FEATURES = {"completed", "task", "seed"}
 
 
-def read_labels_csv(path: pathlib.Path) -> pd.DataFrame | None:
-    """读取 labels.csv；合并版 8 列与早期版 9 列均兼容，只保留 y 列。"""
-    if not path.exists():
+def read_labels_csv(cfg: dict | None = None) -> pd.DataFrame | None:
+    """读取 labels.csv（经 manual_labels.csv 人工层合并）；合并版 8 列与早期版 9 列均兼容，只保留 y 列。"""
+    df = load_labels_merged(cfg)
+    if df is None:
         return None
-    df = pd.read_csv(path)
     keep = ["task", "seed"] + [c for c in Y_COLUMNS if c in df.columns]
     out = df[keep].copy()
     if "completed" in out.columns:
@@ -71,7 +72,7 @@ def build_dataset(cfg: dict, today: str) -> pd.DataFrame:
     feats = pd.DataFrame(feat_rows)
 
     out_dir = pathlib.Path(cfg["output_dir"])
-    labels = read_labels_csv(out_dir / "labels.csv")
+    labels = read_labels_csv(cfg)
     if labels is not None and len(labels):
         df = feats.merge(labels, on=["task", "seed"], how="outer")
     else:

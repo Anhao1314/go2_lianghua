@@ -17,6 +17,7 @@ from datetime import datetime
 import pandas as pd
 
 from collector import PROJECT_ROOT, expand_path, load_config
+from data_utils import load_runs_merged
 
 ANNOTATION_COLUMNS = [
     "timestamp",
@@ -198,7 +199,11 @@ def main() -> None:
     tables: dict = {}
     for name in ("runs", "snapshots", "eval_points"):
         p = out_dir / f"{name}.csv"
-        if p.exists():
+        if not p.exists():
+            continue
+        if name == "runs":
+            tables[name] = load_runs_merged(cfg)
+        else:
             tables[name] = pd.read_csv(p)
 
     def classify(task: str, seed: str):
