@@ -13,7 +13,7 @@ go2w-quant/
 ├── collector.py        # 数据采集（只在 Linux 数据源机器执行）
 ├── summary.py          # 数据集统计预览（Windows/Linux 通用）
 ├── schema.py           # 每张表的列定义与校验
-├── data_dictionary.md  # 数据字典（列含义/单位/来源/频率）
+├── DATA_DICTIONARY.md  # 数据字典（7条件字段定义/单位/口径复权/修订记录）
 ├── config.json         # 数据源路径与成本价格配置
 ├── data/datasets/      # 结构化 CSV（随 GitHub 推送）
 ├── data/raw/           # 原始快照存档（不入库）
