@@ -1,5 +1,5 @@
 ﻿task,seed,label,verdict,success,success_rate,max_dev,min_clear,dual_hold,recovered,settle_seconds,distance,time_to_goal,falls,total_reward,mean_base_reward,nan
-balance,seed00,RL PPO,fail,False,0.0,0.0137814719156279,0.4339423368475094,10.0,False,,,,0.0,-18.8337,0.9999428528996304,False
+balance,seed00,RL PPO,pass,True,1.0,0.0137814719156279,0.4339423368475094,10.0,False,,,,0.0,99.94285289963054,0.9999428528996304,False
 full_chain,seed00,RL PPO,fail,False,0.0,0.400348768495921,-0.0002765020114139,0.372,False,0.0,,,0.0,114.2344986845208,0.8864837091358663,False
 traverse,seed01,RL PPO (bump),fail,True,1.0,0.0826127418658427,,0.0,False,,4.533489724400335,5.129999999999699,0.0,137.611612259356,0.9618171108212008,False
 traverse,seed01,RL PPO (bumpy),fail,True,1.0,0.0889445134041499,,0.0,False,,4.541749114180869,5.385999999999712,0.0,137.5595548525621,0.9631832263795352,False
