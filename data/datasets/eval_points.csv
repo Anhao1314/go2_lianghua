@@ -1065,6 +1065,15 @@ traverse_slope,seed00,4000000,-9.5065,6.1041,632.0
 traverse_slope,seed00,4050000,-11.0352,3.8812,701.2
 traverse_slope,seed00,4100000,-9.7792,4.4756,543.0
 traverse_slope,seed00,4150000,-6.4792,1.3501,641.2
+traverse_slope,seed00,4200000,-5.4818,4.397,767.2
+traverse_slope,seed00,4250000,-9.3893,10.2851,672.2
+traverse_slope,seed00,4300000,-6.6589,3.3637,729.6
+traverse_slope,seed00,4350000,-7.4226,5.6654,929.0
+traverse_slope,seed00,4400000,4.8946,3.8896,850.0
+traverse_slope,seed00,4450000,-1.3479,11.7375,858.8
+traverse_slope,seed00,4500000,-1.8961,7.307,746.2
+traverse_slope,seed00,4550000,-3.0281,8.6129,750.8
+traverse_slope,seed00,4600000,0.0907,5.2129,676.4
 traverse_slope_v1,seed00,1800000,21.7462,7.2221,585.8
 traverse_slope_v1,seed00,1850000,-0.8869,4.4388,689.0
 traverse_slope_v1,seed00,1900000,26.8397,13.4593,904.2
