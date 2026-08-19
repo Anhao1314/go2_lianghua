@@ -93,12 +93,13 @@ data/monitor/           # 实时监控日志（.gitignore）
   alert_annotations.csv
 ```
 
-## 数据现状（截至 2026-08-18）
+## 数据现状（截至 2026-08-19）
 
-- 29 runs 参与回测，标签：pass=1, fail=6, unknown=22
-- 8 个 run 检测到训练塌缩，12 个早停合理
-- 数据筛选：good=16, insufficient=13, anomalous=0
-- duration 回归 LOO R²：全量 -0.627，筛选后 +0.175（标签更新后改善）
+- 30 runs 参与回测，标签：pass=3, fail=14, unknown=13（含 9 个基于 eval 曲线的人工标注）
+- 9 个 run 检测到训练塌缩，14 个早停合理
+- 数据筛选：good=17, insufficient=13, anomalous=0
+- duration 回归 LOO R²：小样本下波动大（-3.96~+0.18），持续跟踪中
+- 规则止损回测：7 个 stop 事件中 5 fail / 2 unknown / 0 pass，所有规则命中率 100%
 - 因子一致性：9 个关键因子 80/80 通过，2 个结构性 N/A（eval_std_recent, eval_slope_per_1e6 实时不可用）
 
 ## 常用命令

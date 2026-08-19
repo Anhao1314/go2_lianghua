@@ -2,13 +2,13 @@
 
 ## 一、筛选结果概览
 
-- 总 run 数：30；good 15 / insufficient 15 / anomalous 0
+- 总 run 数：30；good 17 / insufficient 13 / anomalous 0
 
 ## 二、逐规则通过率
 
 | 规则 | 说明 | 通过 | 失败 |
 |---|---|---|---|
-| rule1 | eval 点数 ≥ 阈值 | 15 | 15 |
+| rule1 | eval 点数 ≥ 阈值 | 17 | 13 |
 | rule2 | 训练规模 ≥ 阈值 | 20 | 10 |
 | rule3 | 无解析异常（清洗后 KL / NaN） | 30 | 0 |
 | rule4 | 曲线可辨识（std > 阈值） | 30 | 0 |
@@ -21,15 +21,13 @@
 | balance | seed02 | insufficient | rule1: eval 点数 0 < 10 | nan | 0 |
 | full_chain | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | full_chain | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
-| full_chain_v1 | seed00 | insufficient | rule1: eval 点数 4 < 10;rule2: 训练规模 max(last_eval=4000, total=None) < 500000 | nan | 4 |
+| full_chain_v1 | seed00 | insufficient | rule1: eval 点数 4 < 10;rule2: 训练规模 max(last_eval=4000, total=None) < 500000 | fail | 4 |
 | traverse | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | fail | 0 |
-| traverse_curve | seed00 | insufficient | rule1: eval 点数 5 < 10 | nan | 5 |
+| traverse_curve | seed00 | insufficient | rule1: eval 点数 8 < 10 | fail | 8 |
 | traverse_curve | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | traverse_curve | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
-| traverse_flat_slope | seed00 | insufficient | rule1: eval 点数 1 < 10 | nan | 1 |
 | traverse_flat_slope | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | traverse_flat_slope | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
-| traverse_slope | seed00 | insufficient | rule1: eval 点数 3 < 10 | fail | 3 |
 | traverse_slope | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | traverse_slope | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 
@@ -42,13 +40,13 @@
 
 | 配置 | 训练集 | 测试集 | R2 | MAE | 样本(n_train/n_test) |
 |---|---|---|---|---|---|
-| A | screened | **full**（LOO 无泄漏） | -5385.2958 | 2645182.1 | 4/18 |
-| B | full | **full** | -0.177 | 87072.5 | 18/18 |
+| A | screened | **full**（LOO 无泄漏） | -3.9619 | 197758.3 | 6/18 |
+| B | full | **full** | -1.058 | 107409.8 | 18/18 |
 
 ### verdict 分类
 
-- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.6667（训练 pass/fail = 2/3，测试 n=6）
-- B（full 训练，full 测试 LOO）：样本不足未训练（pass/fail = 1/7）
+- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.7647（训练 pass/fail = 3/11，测试 n=17）
+- B（full 训练，full 测试 LOO）：accuracy 0.882（pass/fail = 3/14）
 
 ## ⚠️ SURVIVORSHIP BIAS WARNING
 
