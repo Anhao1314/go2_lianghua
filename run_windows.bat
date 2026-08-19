@@ -27,6 +27,8 @@ if /i "%~1"=="--quant" (
   ".venv\Scripts\python.exe" annotate_alerts.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
 ) else if /i "%~1"=="--monitor" (
   ".venv\Scripts\python.exe" realtime_monitor.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
+) else if /i "%~1"=="--pipeline" (
+  ".venv\Scripts\python.exe" run_pipeline.py %~2 %~3 %~4 %~5 %~6 %~7 %~8 %~9
 ) else (
   ".venv\Scripts\python.exe" summary.py %*
 )

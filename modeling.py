@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import pathlib
 from datetime import date as _Date
+from typing import Any
 
 import pandas as pd
 
@@ -32,9 +33,15 @@ Y_COLUMNS = ("completed", "verdict", "success_rate", "duration_seconds", "label_
 EXCLUDED_FEATURES = {"completed", "task", "seed"}
 
 
-def read_labels_csv(cfg: dict | None = None) -> pd.DataFrame | None:
-    """读取 labels.csv（经 manual_labels.csv 人工层合并）；合并版 8 列与早期版 9 列均兼容，只保留 y 列。"""
-    df = load_labels_merged(cfg)
+def read_labels_csv(
+    cfg: dict | None = None,
+    labels_df: pd.DataFrame | None = None,
+) -> pd.DataFrame | None:
+    """读取 labels.csv（经 manual_labels.csv 人工层合并）；合并版 8 列与早期版 9 列均兼容，只保留 y 列。
+
+    labels_df 传入时直接使用（供 run_pipeline 内存传递），缺省回退磁盘读取。
+    """
+    df = load_labels_merged(cfg) if labels_df is None else labels_df
     if df is None:
         return None
     keep = ["task", "seed"] + [c for c in Y_COLUMNS if c in df.columns]
@@ -50,10 +57,20 @@ def read_labels_csv(cfg: dict | None = None) -> pd.DataFrame | None:
     return out
 
 
-def build_dataset(cfg: dict, today: str) -> pd.DataFrame:
-    """因子矩阵（X，来自 factors）与标签（y，来自 labels.csv）合成一行一个 run。"""
-    tables = load_tables(cfg)
-    result = compute_all(cfg, tables, today=today)
+def build_dataset(
+    cfg: dict,
+    today: str,
+    tables: dict[str, pd.DataFrame] | None = None,
+    labels: pd.DataFrame | None = None,
+    factors_cache: dict[tuple[str, str], dict[str, Any]] | None = None,
+) -> pd.DataFrame:
+    """因子矩阵（X，来自 factors）与标签（y，来自 labels.csv）合成一行一个 run。
+
+    tables/labels/factors_cache 供 run_pipeline 内存传递，缺省回退磁盘读取与全量计算。
+    """
+    if tables is None:
+        tables = load_tables(cfg)
+    result = compute_all(cfg, tables, today=today, factors_cache=factors_cache)
 
     feat_rows: list[dict] = []
     for r in result.runs:
@@ -71,8 +88,7 @@ def build_dataset(cfg: dict, today: str) -> pd.DataFrame:
         feat_rows.append(row)
     feats = pd.DataFrame(feat_rows)
 
-    out_dir = pathlib.Path(cfg["output_dir"])
-    labels = read_labels_csv(cfg)
+    labels = read_labels_csv(cfg, labels_df=labels)
     if labels is not None and len(labels):
         df = feats.merge(labels, on=["task", "seed"], how="outer")
     else:
@@ -97,6 +113,49 @@ def resolve_out_dir(cfg: dict, override: str | None) -> pathlib.Path:
     return p if p.is_absolute() else PROJECT_ROOT / p
 
 
+def run(
+    cfg: dict,
+    today: str | None = None,
+    tables: dict[str, pd.DataFrame] | None = None,
+    labels: pd.DataFrame | None = None,
+    factors_cache: dict[tuple[str, str], dict[str, Any]] | None = None,
+    out: str | None = None,
+    screened: bool = False,
+    full_df: pd.DataFrame | None = None,
+    enriched_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """特征固化全流程：建数据集 -> 写 CSV ->（可选）筛选输出，返回 dataset。
+
+    供 CLI 与 run_pipeline 复用；tables/labels/factors_cache 传入时跳过重复计算；
+    full_df/enriched_df 供 --screened 内存传递（缺省回退磁盘读取）。
+    """
+    today = today or _Date.today().isoformat()
+    df = build_dataset(cfg, today, tables=tables, labels=labels,
+                       factors_cache=factors_cache)
+
+    out_dir = resolve_out_dir(cfg, out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"dataset_{today}.csv"
+    df.to_csv(path, index=False, encoding="utf-8-sig")
+    if screened:
+        import data_screening  # 函数内 import 避免循环依赖
+        data_screening.screen_outputs(
+            cfg, today, out_dir,
+            tables=tables, full_df=full_df, enriched_df=enriched_df,
+            factors_cache=factors_cache,
+        )
+
+    x_cols = [c for c in df.columns if c not in ("task", "seed") + tuple(Y_COLUMNS)]
+    n_verdict = int(df["verdict"].notna().sum())
+    n_sr = int(df["success_rate"].notna().sum())
+    n_dur = int(df["duration_seconds"].notna().sum())
+    n_completed = int(df["completed"].fillna(False).astype(bool).sum())
+    print(f"[go2w-quant] 特征数据集 {today}：{len(df)} runs × {len(x_cols)} 特征")
+    print(f"  标签可用：verdict {n_verdict} / success_rate {n_sr} / duration {n_dur} / completed {n_completed}")
+    print(f"  输出: {path}")
+    return df
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="go2w-quant 特征固化（B 方案）")
     parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
@@ -107,25 +166,7 @@ def main() -> None:
     args = parser.parse_args()
 
     cfg = load_config(args.config)
-    today = args.today or _Date.today().isoformat()
-    df = build_dataset(cfg, today)
-
-    out_dir = resolve_out_dir(cfg, args.out)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / f"dataset_{today}.csv"
-    df.to_csv(path, index=False, encoding="utf-8-sig")
-    if args.screened:
-        import data_screening  # 函数内 import 避免循环依赖
-        data_screening.screen_outputs(cfg, today, out_dir)
-
-    x_cols = [c for c in df.columns if c not in ("task", "seed") + tuple(Y_COLUMNS)]
-    n_verdict = int(df["verdict"].notna().sum())
-    n_sr = int(df["success_rate"].notna().sum())
-    n_dur = int(df["duration_seconds"].notna().sum())
-    n_completed = int(df["completed"].fillna(False).astype(bool).sum())
-    print(f"[go2w-quant] 特征数据集 {today}：{len(df)} runs × {len(x_cols)} 特征")
-    print(f"  标签可用：verdict {n_verdict} / success_rate {n_sr} / duration {n_dur} / completed {n_completed}")
-    print(f"  输出: {path}")
+    run(cfg, today=args.today, out=args.out, screened=args.screened)
 
 
 if __name__ == "__main__":

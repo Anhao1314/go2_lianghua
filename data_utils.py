@@ -76,3 +76,32 @@ def load_labels_merged(cfg: dict | None = None) -> pd.DataFrame | None:
         manual = pd.read_csv(manual_path, encoding="utf-8-sig")
         labels = _merge_manual(labels, manual)
     return labels
+
+def load_all_tables(cfg: dict | None = None) -> dict[str, pd.DataFrame]:
+    """一次性加载全部数据表（6 张因子表 + labels），供 run_pipeline 复用。
+
+    与 quant.load_tables 同款读取方式（runs 走 load_runs_merged，其余直读并校验），
+    另追加 labels 键（走 load_labels_merged）。缺失表跳过。
+    注意：不 import quant（避免循环依赖），读取逻辑内联于此。
+    """
+    from schema import validate_frame
+
+    out_dir = _resolve_out_dir(cfg)
+    tables: dict[str, pd.DataFrame] = {}
+    for table in ("runs", "eval_points", "tb_points", "snapshots", "reports", "costs"):
+        if table == "runs":
+            df = load_runs_merged(cfg)
+            if df is not None:
+                validate_frame(df, "runs")
+                tables[table] = df
+            continue
+        tpath = out_dir / f"{table}.csv"
+        if not tpath.exists():
+            continue
+        df = pd.read_csv(tpath)
+        validate_frame(df, table)
+        tables[table] = df
+    labels = load_labels_merged(cfg)
+    if labels is not None:
+        tables["labels"] = labels
+    return tables
