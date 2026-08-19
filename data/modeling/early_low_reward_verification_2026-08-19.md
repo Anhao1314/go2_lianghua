@@ -20,7 +20,7 @@
 | traverse_curve_v1/seed00 | fail | 4,000,000 | 1,000,000 | 20 | 12.64 | -0.97 | 是 | 1,000,000 |
 | traverse_curve_v2/seed00 | fail | 4,000,000 | 1,000,000 | 20 | 8.10 | -9.80 | 是 | 1,000,000 |
 | traverse_curve_v3/seed00 | fail | 4,000,000 | 1,000,000 | 20 | 9.39 | -2.55 | 是 | 1,000,000 |
-| traverse_flat_slope/seed00 | unknown | 4,000,000 | 1,000,000 | 16 | -8.08 | -12.46 | 是 | 1,000,000 |
+| traverse_flat_slope/seed00 | fail | 4,000,000 | 1,000,000 | 16 | -8.08 | -12.46 | 是 | 1,000,000 |
 | traverse_flat_slope_v1/seed00 | fail | 4,000,000 | 1,000,000 | 20 | 30.05 | 2.47 | 否 | - |
 | traverse_slope/seed00 | fail | 4,000,000 | 1,000,000 | 20 | 13.85 | -8.78 | 是 | 1,000,000 |
 | traverse_slope_v1/seed00 | fail | 4,000,000 | 1,000,000 | 0 | - | - | 否 | - |
@@ -31,7 +31,7 @@
 ## 二、触发统计
 
 - 有 eval 数据 run：19；触发：7
-- 触发 verdict 分布：pass 0 / fail 5 / unknown 2
+- 触发 verdict 分布：pass 0 / fail 6 / unknown 1
 - 命中率（fail / (fail+pass)）：1.00
 - 误杀数（触发的 pass）：0
 - 与现有 stop 事件重叠：3；新增命中：4（fail 3 / unknown 1）
@@ -55,4 +55,4 @@
 
 ## 五、结论
 
-建议上线：阈值 30 下触发 7 个 run（fail 5 / unknown 2），0 误杀，命中率 1.00，新增 fail 命中 3 个；敏感性分析中 20/30 一致、50/80 增加 traverse_flat_slope_v1（early_max=30.05，margin 小），推荐阈值 30。
+建议上线：阈值 30 下触发 7 个 run（fail 6 / unknown 1），0 误杀，命中率 1.00，新增 fail 命中 3 个；敏感性分析中 20/30 一致、50/80 增加 traverse_flat_slope_v1（early_max=30.05，margin 小），推荐阈值 30。

@@ -33,7 +33,14 @@ from typing import Any
 import pandas as pd
 
 from collector import PROJECT_ROOT, load_config
-from factors import LEVEL_INDEX, decide, max_level, run_factors, run_risk_items
+from factors import (
+    LEVEL_INDEX,
+    decide,
+    early_low_reward_factor,
+    max_level,
+    run_factors,
+    run_risk_items,
+)
 from quant import load_tables, resolve_report_dir
 
 # 报告常驻免责声明（直到标签数量达标）
@@ -176,6 +183,68 @@ def online_view(
     return view
 
 
+def _run_total_steps(
+    tables: dict[str, pd.DataFrame], task: str, seed: str
+) -> float | None:
+    """run 总步数：runs 行 total_steps 优先，缺失回退最后一个 eval timesteps。"""
+    row = _row(tables.get("runs"), task, seed)
+    if row is not None:
+        total = _to_float(row.get("total_steps"))
+        if total is not None and total > 0:
+            return total
+    evals = _filter(tables.get("eval_points"), task, seed)
+    ts = pd.to_numeric(evals["timesteps"], errors="coerce").dropna()
+    return float(ts.max()) if len(ts) else None
+
+
+def _early_first_ts(
+    tables: dict[str, pd.DataFrame], task: str, seed: str, cfg: dict[str, Any]
+) -> float | None:
+    """early_low_reward 触发截面：全量窗口因子成立时，返回快照轴上最早
+    >= 25% 窗口闭合步长的时刻；否则返回 None。"""
+    evals = _filter(tables.get("eval_points"), task, seed)
+    snaps = _filter(tables.get("snapshots"), task, seed)
+    if evals.empty or snaps.empty:
+        return None
+    total = _run_total_steps(tables, task, seed)
+    if total is None or total <= 0:
+        return None
+    d = evals.sort_values("timesteps").reset_index(drop=True)
+    if early_low_reward_factor(d, task, total, cfg) is not True:
+        return None
+    trig_ts = total * 0.25
+    sn_ts = pd.to_numeric(snaps["timesteps"], errors="coerce")
+    sn_t = pd.to_numeric(snaps["time"], errors="coerce")
+    cand = sn_t[sn_t.notna() & sn_ts.notna() & (sn_ts >= trig_ts)]
+    return float(cand.min()) if len(cand) else None
+
+def _early_axis_event(
+    tables: dict[str, pd.DataFrame], task: str, seed: str, cfg: dict[str, Any]
+) -> TriggerEvent | None:
+    """无快照 run 的 eval 轴单因子回放：仅按全量 eval 点判定 early_low_reward。
+
+    全量窗口因子成立时，在 25% 窗口闭合步长（total*0.25）产生 R2 stop 事件；
+    不做全规则回放（无快照 pass run 的全量 drawdown 会误杀）。
+    注：max(mean_reward) 随前缀单调不减，首真前缀可能在窗口内被后续点推翻
+    （如 flat_slope_v1 early_max=30.05），故以全量因子为准。
+    """
+    evals = _filter(tables.get("eval_points"), task, seed)
+    if evals.empty:
+        return None
+    total = _run_total_steps(tables, task, seed)
+    if total is None or total <= 0:
+        return None
+    d = evals.sort_values("timesteps").reset_index(drop=True)
+    if early_low_reward_factor(d, task, total, cfg) is not True:
+        return None
+    trig_ts = total * 0.25
+    return TriggerEvent(
+        task, seed, "R2", "stop", trig_ts,
+        ("early_low_reward",),
+        ("前25%训练步数内评估奖励始终低于阈值（从未学会型失败）",),
+        0.25,
+    )
+
 def replay_run(
     tables: dict[str, pd.DataFrame],
     task: str,
@@ -186,7 +255,10 @@ def replay_run(
     """沿时间轴重放单个 run；返回首次 R3、首次 R2/R3、首次 stop 事件（可去重）。"""
     snaps = _filter(tables.get("snapshots"), task, seed)
     if snaps.empty:
-        return []
+        # 无快照 run：仅按 eval 轴回放 early_low_reward（单因子），
+        # 不做全规则回放（全量 drawdown 会误杀无快照 pass run）
+        ev = _early_axis_event(tables, task, seed, cfg)
+        return [ev] if ev is not None else []
     snaps = snaps.sort_values("time")
     t0 = float(snaps["time"].iloc[0])
     t1 = float(snaps["time"].iloc[-1])
@@ -339,7 +411,7 @@ def estimate_t_end(
     """估算 run 实际结束时间；返回 (t_end, method)，method ∈ actual/step_rate/task_mean。"""
     snaps = _filter(tables.get("snapshots"), task, seed)
     if snaps.empty:
-        return trigger_time, "actual"
+        return trigger_time, "no_snapshot"
     t0 = float(snaps["time"].min())
     row = _row(tables.get("runs"), task, seed)
     completed = _as_bool(row.get("completed")) if row else False
@@ -388,6 +460,18 @@ def enrich_stop_events(
         t_end, method = estimate_t_end(tables, ev.task, ev.seed, ev.trigger_time)
         saved = max(0.0, (t_end - ev.trigger_time) / 60.0)
         f = run_factors(ev.task, ev.seed, tables, cfg)  # 全量因子（事后诊断用）
+        # early_low_reward 事后归因：仅计全量窗口因子成立的 run；
+        # 已含 early 但全量不成立时移除（前缀首真会被窗口内后续点推翻，如 flat_slope_v1）；
+        # 全量成立但首次 stop 未含时，若窗口闭合时刻不早于 stop 则并入
+        if "early_low_reward" in ev.factors and f.get("early_low_reward") is not True:
+            ev.factors = tuple(x for x in ev.factors if x != "early_low_reward")
+        if (
+            "early_low_reward" not in ev.factors
+            and f.get("early_low_reward") is True
+        ):
+            early_ts = _early_first_ts(tables, ev.task, ev.seed, cfg)
+            if early_ts is not None and early_ts >= ev.trigger_time:
+                ev.factors = tuple(sorted(ev.factors + ("early_low_reward",)))
         row = _row(runs_df, ev.task, ev.seed)
         rewards = same_task_rewards(tables, ev.task)
         fs = fail_score(f, row, rewards)

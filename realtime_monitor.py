@@ -156,6 +156,7 @@ class RealtimeMonitor:
             "prev_alive": None,
             "last_notify": {},  # factor -> (timestamp, level)
             "last_factors": {},
+            "eval_history": [],  # [timesteps, reward] 当前训练尝试的 eval 点序列（重启重置）
         }
 
     def update_state(self, task: str, seed_id: str, seed: dict[str, Any]) -> dict[str, Any]:
@@ -202,6 +203,11 @@ class RealtimeMonitor:
             if reward < 0:
                 st["neg_count"] += 1
                 st["total_neg_count"] += 1
+            # early_low_reward 历史：按"奖励值变化去重"追加（同一 eval 点在多次
+            # 轮询间 eval_reward 不变，不重复计；新 eval 点奖励变化时计入）
+            hist = st["eval_history"]
+            if not hist or hist[-1][1] != reward:
+                hist.append([cur_ts, reward])
         now = time.time()
         if st["last_timesteps"] is not None and cur_ts == st["last_timesteps"]:
             if st["stall_start_ts"] is None:
@@ -260,6 +266,19 @@ class RealtimeMonitor:
             stall = (time.time() - st["stall_start_ts"]) / 60.0
         max_stall = max(st["max_stall_minutes"], stall)
         total = self._total_steps(task)
+        early_low_reward = None
+        eval_history = st.get("eval_history") or []
+        if eval_history and total > 0:
+            e = self.risk.get("early_low_reward") or {}
+            min_pts = int(e.get("min_early_points", 3))
+            cutoff = total * 0.25
+            early = [r for _ts, r in eval_history if _ts <= cutoff]
+            if early:
+                if len(early) >= min_pts:
+                    threshold = factors.early_low_reward_threshold(task, self.cfg)
+                    early_low_reward = bool(max(early) < threshold)
+                else:
+                    early_low_reward = False
         f: dict[str, Any] = {
             "eval_last_reward": round(reward, 4),
             "eval_peak_reward": round(peak, 4) if peak_valid else None,
@@ -270,6 +289,7 @@ class RealtimeMonitor:
             "eval_neg_ratio": round(st["total_neg_count"] / st["total_poll_count"], 4)
             if st["total_poll_count"]
             else None,
+            "early_low_reward": early_low_reward,
             "neg_ratio_current": round(st["neg_count"] / st["poll_count"], 4)
             if st["poll_count"]
             else None,

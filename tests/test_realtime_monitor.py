@@ -289,5 +289,69 @@ class RealtimeMonitorTest(unittest.TestCase):
         self.assertTrue(any("NaN" in i.message for i in risks))
 
 
+
+
+    # 10. early_low_reward 实时计算（低奖励触发/高奖励不触发/同点去重/重启清空）
+    def test_early_low_reward_online_low(self):
+        seeds = [
+            seed_payload(timesteps=100000, eval_reward=5.0),
+            seed_payload(timesteps=300000, eval_reward=10.0),
+            seed_payload(timesteps=300000, eval_reward=10.0),  # 同点重复轮询去重
+            seed_payload(timesteps=700000, eval_reward=15.0),
+        ]
+        for s in seeds:
+            with (
+                patch("realtime_monitor.requests.get",
+                      side_effect=mock_get_side_effect(state_payload([s]))),
+                patch("realtime_monitor.requests.post",
+                      return_value=MockResponse({"code": 0})),
+            ):
+                self.mon.poll_once()
+        st = self.mon.state[("balance", "seed00")]
+        f = st["last_factors"]
+        self.assertEqual(len(st["eval_history"]), 3)  # 去重后 3 个 eval 点
+        self.assertTrue(f["early_low_reward"])  # max=15 < balance 阈值 50
+
+    def test_early_low_reward_online_high(self):
+        seeds = [
+            seed_payload(timesteps=100000, eval_reward=40.0),
+            seed_payload(timesteps=300000, eval_reward=45.0),
+            seed_payload(timesteps=700000, eval_reward=50.0),
+        ]
+        for s in seeds:
+            with (
+                patch("realtime_monitor.requests.get",
+                      side_effect=mock_get_side_effect(state_payload([s]))),
+                patch("realtime_monitor.requests.post",
+                      return_value=MockResponse({"code": 0})),
+            ):
+                self.mon.poll_once()
+        f = self.mon.state[("balance", "seed00")]["last_factors"]
+        self.assertFalse(f["early_low_reward"])  # max=50 >= 50
+
+    def test_early_low_reward_restart_resets_history(self):
+        with (
+            patch("realtime_monitor.requests.get",
+                  side_effect=mock_get_side_effect(state_payload(
+                      [seed_payload(timesteps=4000000, eval_reward=10.0)]))),
+            patch("realtime_monitor.requests.post",
+                  return_value=MockResponse({"code": 0})),
+        ):
+            self.mon.poll_once()
+        with (
+            patch("realtime_monitor.requests.get",
+                  side_effect=mock_get_side_effect(state_payload(
+                      [seed_payload(timesteps=9000, eval_reward=-5.0)]))),
+            patch("realtime_monitor.requests.post",
+                  return_value=MockResponse({"code": 0})),
+        ):
+            self.mon.poll_once()
+        st = self.mon.state[("balance", "seed00")]
+        self.assertEqual(st["restart_count"], 1)  # 4M -> 9k 规格回退
+        self.assertEqual(len(st["eval_history"]), 1)  # 重启后当前尝试仅 1 点
+        f = st["last_factors"]
+        self.assertFalse(f["early_low_reward"])  # 早段仅 1 点，不足 3
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,12 +1,12 @@
 {
   "today": "2026-08-19",
-  "generated_at": "2026-08-19T11:26:26",
+  "generated_at": "2026-08-19T15:08:50",
   "coverage": {
     "runs": 30,
     "eval_points": 1346,
     "tb_points": 9015,
     "snapshots": 16021,
-    "reports": 15,
+    "reports": 17,
     "costs": 3
   },
   "runs": [
@@ -49,7 +49,8 @@
         "idle_minutes": 113.8,
         "neg_ratio_current": 0.6981,
         "completed": true,
-        "progress_ratio": 0.5
+        "progress_ratio": 0.5,
+        "early_low_reward": false
       },
       "risks": [
         {
@@ -135,7 +136,8 @@
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
         "neg_ratio_current": 0.3065,
-        "completed": false
+        "completed": false,
+        "early_low_reward": false
       },
       "risks": [
         {
@@ -211,7 +213,8 @@
         "idle_minutes": 13.7,
         "neg_ratio_current": 0.5,
         "completed": false,
-        "progress_ratio": 0.0875
+        "progress_ratio": 0.0875,
+        "early_low_reward": false
       },
       "risks": [
         {
@@ -387,7 +390,8 @@
         "ev_neg_streak": 168,
         "value_loss_divergent": false,
         "neg_ratio_current": 0.0,
-        "completed": false
+        "completed": false,
+        "early_low_reward": false
       },
       "risks": [
         {
@@ -445,7 +449,8 @@
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
         "neg_ratio_current": 0.4151,
-        "completed": false
+        "completed": false,
+        "early_low_reward": false
       },
       "risks": [
         {
@@ -699,7 +704,8 @@
         "kl_divergent": true,
         "kl_divergent_streak": 4,
         "neg_ratio_current": 0.75,
-        "completed": false
+        "completed": false,
+        "early_low_reward": false
       },
       "risks": [
         {
@@ -774,7 +780,8 @@
         "idle_minutes": 13.7,
         "neg_ratio_current": 0.0125,
         "completed": true,
-        "progress_ratio": 1.0
+        "progress_ratio": 1.0,
+        "early_low_reward": false
       },
       "risks": [
         {
@@ -845,6 +852,11 @@
         "std_last": 0.5087,
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
+        "report_rows": 1,
+        "verdict_fail_ratio": 1.0,
+        "success_rate_mean": 0.0,
+        "falls_mean": 1.0,
+        "nan_count": 0,
         "snapshot_count": 1283,
         "time_span_minutes": 1738.9,
         "timesteps_growth": 376832.0,
@@ -857,7 +869,8 @@
         "idle_minutes": 113.8,
         "neg_ratio_current": 0.5,
         "completed": false,
-        "progress_ratio": 0.1
+        "progress_ratio": 0.1,
+        "early_low_reward": true
       },
       "risks": [
         {
@@ -877,6 +890,18 @@
           "table": "eval_points",
           "factor": "neg_ratio_current",
           "message": "当前训练尝试负奖励占比 50%（>30%）"
+        },
+        {
+          "level": "R2",
+          "table": "eval_points",
+          "factor": "early_low_reward",
+          "message": "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）"
+        },
+        {
+          "level": "R1",
+          "table": "reports",
+          "factor": "acceptance",
+          "message": "全部验收场景 verdict=fail，需人工复核"
         },
         {
           "level": "R1",
@@ -909,6 +934,8 @@
         "评估奖励较峰值回撤 74.5%（阈值 30%）",
         "评估奖励负值占比 50%（>30%）",
         "当前训练尝试负奖励占比 50%（>30%）",
+        "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）",
+        "全部验收场景 verdict=fail，需人工复核",
         "CPU 使用率峰值 100%（>95%）",
         "timesteps 连续 258 分钟无增长（>=60）",
         "检测到 2 次训练重启（>=2）",
@@ -1026,7 +1053,8 @@
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
         "neg_ratio_current": 0.375,
-        "completed": true
+        "completed": true,
+        "early_low_reward": true
       },
       "risks": [
         {
@@ -1048,6 +1076,12 @@
           "message": "当前训练尝试负奖励占比 38%（>30%）"
         },
         {
+          "level": "R2",
+          "table": "eval_points",
+          "factor": "early_low_reward",
+          "message": "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）"
+        },
+        {
           "level": "R1",
           "table": "eval_points",
           "factor": "std_reward_collapse",
@@ -1066,6 +1100,7 @@
         "评估奖励较峰值回撤 100.0%（阈值 30%）",
         "近期评估奖励负值占比 80%（>50%），疑似策略崩溃",
         "当前训练尝试负奖励占比 38%（>30%）",
+        "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）",
         "策略输出标准差 0.0（<0.01），疑似确定性退化",
         "approx_kl=0.5671（>0.1）"
       ]
@@ -1097,9 +1132,16 @@
         "falls_mean": 0.0,
         "nan_count": 0,
         "neg_ratio_current": 0.1875,
-        "completed": true
+        "completed": true,
+        "early_low_reward": true
       },
       "risks": [
+        {
+          "level": "R2",
+          "table": "eval_points",
+          "factor": "early_low_reward",
+          "message": "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）"
+        },
         {
           "level": "R2",
           "table": "tb_points",
@@ -1116,6 +1158,7 @@
       "level": "R2",
       "decision": "tune",
       "reasons": [
+        "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）",
         "approx_kl=0.5671（>0.1）",
         "全部验收场景 verdict=fail，需人工复核"
       ]
@@ -1147,7 +1190,8 @@
         "falls_mean": 1.0,
         "nan_count": 0,
         "neg_ratio_current": 0.3875,
-        "completed": true
+        "completed": true,
+        "early_low_reward": true
       },
       "risks": [
         {
@@ -1167,6 +1211,12 @@
           "table": "eval_points",
           "factor": "neg_ratio_current",
           "message": "当前训练尝试负奖励占比 39%（>30%）"
+        },
+        {
+          "level": "R2",
+          "table": "eval_points",
+          "factor": "early_low_reward",
+          "message": "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）"
         },
         {
           "level": "R2",
@@ -1193,6 +1243,7 @@
         "评估奖励较峰值回撤 100.0%（阈值 30%）",
         "近期评估奖励负值占比 100%（>50%），疑似策略崩溃",
         "当前训练尝试负奖励占比 39%（>30%）",
+        "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）",
         "approx_kl=0.3303（>0.1）",
         "全部验收场景 verdict=fail，需人工复核",
         "最大俯仰偏差 0.4024 rad（>0.15）"
@@ -1218,6 +1269,11 @@
         "std_last": 0.1997,
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
+        "report_rows": 1,
+        "verdict_fail_ratio": 1.0,
+        "success_rate_mean": 0.0,
+        "falls_mean": 1.0,
+        "nan_count": 0,
         "snapshot_count": 1273,
         "time_span_minutes": 1739.4,
         "timesteps_growth": 1502528.0,
@@ -1230,7 +1286,8 @@
         "idle_minutes": 113.8,
         "neg_ratio_current": 0.6538,
         "completed": false,
-        "progress_ratio": 0.375
+        "progress_ratio": 0.375,
+        "early_low_reward": true
       },
       "risks": [
         {
@@ -1252,10 +1309,22 @@
           "message": "当前训练尝试负奖励占比 65%（>50%），疑似崩溃"
         },
         {
+          "level": "R2",
+          "table": "eval_points",
+          "factor": "early_low_reward",
+          "message": "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）"
+        },
+        {
           "level": "R1",
           "table": "tb_points",
           "factor": "approx_kl",
           "message": "approx_kl=0.0899（>0.05）"
+        },
+        {
+          "level": "R1",
+          "table": "reports",
+          "factor": "acceptance",
+          "message": "全部验收场景 verdict=fail，需人工复核"
         },
         {
           "level": "R1",
@@ -1288,7 +1357,9 @@
         "评估奖励较峰值回撤 52.3%（阈值 30%）",
         "评估奖励负值占比 65%（>30%）",
         "当前训练尝试负奖励占比 65%（>50%），疑似崩溃",
+        "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）",
         "approx_kl=0.0899（>0.05）",
+        "全部验收场景 verdict=fail，需人工复核",
         "CPU 使用率峰值 100%（>95%）",
         "timesteps 连续 1044 分钟无增长（>=60）",
         "检测到 2 次训练重启（>=2）",
@@ -1406,7 +1477,8 @@
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
         "neg_ratio_current": 0.075,
-        "completed": true
+        "completed": true,
+        "early_low_reward": false
       },
       "risks": [
         {
@@ -1467,7 +1539,8 @@
         "idle_minutes": 113.8,
         "neg_ratio_current": 0.125,
         "completed": true,
-        "progress_ratio": 1.0
+        "progress_ratio": 1.0,
+        "early_low_reward": true
       },
       "risks": [
         {
@@ -1481,6 +1554,12 @@
           "table": "eval_points",
           "factor": "stagnation",
           "message": "训练进度 100% 但奖励仅为峰值的 12%（<60%），疑似停滞"
+        },
+        {
+          "level": "R2",
+          "table": "eval_points",
+          "factor": "early_low_reward",
+          "message": "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）"
         },
         {
           "level": "R2",
@@ -1512,6 +1591,7 @@
       "reasons": [
         "评估奖励较峰值回撤 88.5%（阈值 30%）",
         "训练进度 100% 但奖励仅为峰值的 12%（<60%），疑似停滞",
+        "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）",
         "approx_kl=0.2797（>0.1）",
         "全部验收场景 verdict=fail，需人工复核",
         "最大俯仰偏差 0.403 rad（>0.15）",
@@ -1673,7 +1753,8 @@
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
         "neg_ratio_current": 0.5,
-        "completed": false
+        "completed": false,
+        "early_low_reward": true
       },
       "risks": [
         {
@@ -1695,6 +1776,12 @@
           "message": "当前训练尝试负奖励占比 50%（>30%）"
         },
         {
+          "level": "R2",
+          "table": "eval_points",
+          "factor": "early_low_reward",
+          "message": "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）"
+        },
+        {
           "level": "R1",
           "table": "tb_points",
           "factor": "approx_kl",
@@ -1707,6 +1794,7 @@
         "评估奖励较峰值回撤 46.0%（阈值 30%）",
         "评估奖励负值占比 50%（>30%）",
         "当前训练尝试负奖励占比 50%（>30%）",
+        "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）",
         "approx_kl=0.0552（>0.05）"
       ]
     },
@@ -1731,7 +1819,8 @@
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
         "neg_ratio_current": 0.0125,
-        "completed": true
+        "completed": true,
+        "early_low_reward": false
       },
       "risks": [
         {
@@ -1775,7 +1864,8 @@
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
         "neg_ratio_current": 0.0,
-        "completed": true
+        "completed": true,
+        "early_low_reward": false
       },
       "risks": [
         {

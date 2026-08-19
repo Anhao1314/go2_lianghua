@@ -21,6 +21,7 @@ import pandas as pd
 RISK_LEVELS = ("R0", "R1", "R2", "R3")
 LEVEL_INDEX = {"R0": 0, "R1": 1, "R2": 2, "R3": 3}
 DECISIONS = ("continue", "watch", "stop", "tune", "resize")
+EARLY_RATIO = 0.25  # early_low_reward：前 25% 训练步数视为"早段"
 
 
 @dataclass
@@ -441,6 +442,48 @@ def snapshot_factors(df: pd.DataFrame, idle_cfg: dict[str, Any]) -> dict[str, An
     return f
 
 
+def early_low_reward_threshold(task: str, cfg: dict[str, Any]) -> float:
+    """early_low_reward 按任务分组的奖励阈值。
+
+    匹配顺序：balance* -> balance_threshold(50)、full_chain* -> full_chain_threshold(50)、
+    traverse* -> traverse_threshold(30)、其余 -> default_threshold(30)。
+    """
+    e = cfg["risk"]["early_low_reward"]
+    if task.startswith("balance"):
+        return float(e["balance_threshold"])
+    if task.startswith("full_chain"):
+        return float(e["full_chain_threshold"])
+    if task.startswith("traverse"):
+        return float(e["traverse_threshold"])
+    return float(e["default_threshold"])
+
+
+def early_low_reward_factor(
+    evals_df: pd.DataFrame, task: str, total_steps: float | None, cfg: dict[str, Any]
+) -> bool | None:
+    """前 25% 训练步数内评估奖励始终低于阈值的"从未学会型"失败信号。
+
+    口径：有效（mean_reward 非空）eval 点中取 timesteps <= total_steps*0.25 的早段点；
+    早段点 >= min_early_points 且 max(mean_reward) < 任务阈值 -> True，否则 False；
+    无任何有效奖励数据（或 total_steps 缺失/非正）-> None。
+    total_steps 优先 runs 行，缺失时由调用方回退最后一个 eval timesteps。
+    """
+    if evals_df is None or evals_df.empty or total_steps is None or total_steps <= 0:
+        return None
+    e = cfg["risk"]["early_low_reward"]
+    min_pts = int(e["min_early_points"])
+    d = evals_df.sort_values("timesteps").reset_index(drop=True)
+    ts = pd.to_numeric(d["timesteps"], errors="coerce")
+    rew = pd.to_numeric(d["mean_reward"], errors="coerce")
+    m = ts.notna() & rew.notna() & (ts <= total_steps * EARLY_RATIO)
+    early = rew[m]
+    if len(early) == 0:
+        return None
+    if len(early) < min_pts:
+        return False
+    return bool(float(early.max()) < early_low_reward_threshold(task, cfg))
+
+
 def run_factors(
     task: str, seed: str, tables: dict[str, pd.DataFrame], cfg: dict[str, Any]
 ) -> dict[str, Any]:
@@ -466,13 +509,21 @@ def run_factors(
         cur_ratio = _neg_ratio_current(evals_df, snaps_df)
         f["neg_ratio_current"] = cur_ratio if cur_ratio is not None else f.get("eval_neg_ratio")
     runs = tables.get("runs")
+    total_steps: float | None = None
     if runs is not None and len(runs) and f:
         row = runs[(runs["task"] == task) & (runs["seed"] == seed)]
         if len(row):
             f["completed"] = bool(row["completed"].astype(bool).iloc[0])
-            total = pd.to_numeric(row["total_steps"], errors="coerce").dropna()
-            if len(total) and f.get("eval_last_timesteps") is not None:
-                f["progress_ratio"] = round(f["eval_last_timesteps"] / float(total.iloc[0]), 4)
+            total_v = pd.to_numeric(row["total_steps"], errors="coerce").dropna()
+            if len(total_v):
+                total_steps = float(total_v.iloc[0])
+                if f.get("eval_last_timesteps") is not None:
+                    f["progress_ratio"] = round(f["eval_last_timesteps"] / total_steps, 4)
+    if total_steps is None and f.get("eval_last_timesteps") is not None:
+        total_steps = float(f["eval_last_timesteps"])
+    early_val = early_low_reward_factor(evals_df, task, total_steps, cfg)
+    if early_val is not None:
+        f["early_low_reward"] = early_val
     return f
 
 
@@ -523,6 +574,11 @@ def run_risk_items(f: dict[str, Any], cfg: dict[str, Any]) -> list[RiskItem]:
         elif neg_cur > r["neg_ratio"]["watch"]:
             add("R1", "eval_points", "neg_ratio_current",
                 f"当前训练尝试负奖励占比 {neg_cur:.0%}（>{r['neg_ratio']['watch']:.0%}）")
+
+    # 从未学会型：前 25% 步数内评估奖励始终低于阈值 -> 早停（建议制）
+    if f.get("early_low_reward") is True:
+        add("R2", "eval_points", "early_low_reward",
+            "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）")
 
     # 评估内策略输出 std 塌缩（与 tb_points std_last 不同源；评估点数不足 5 不判）
     eval_pts = f.get("eval_points", 0)
@@ -641,7 +697,7 @@ def decide(f: dict[str, Any], risks: list[RiskItem], cfg: dict[str, Any]) -> tup
     """由风险项给出建议：continue / watch / stop / tune / resize。
 
     矩阵：R3 -> stop；R2 -> 按触发因子细分（回撤/停滞/NaN/负奖励崩溃/反复重启 早停，
-    健康度/KL 发散 调参，资源/当前停滞 重调度）；R1 -> watch；R0 -> continue。
+    从未学会型 早停，健康度/KL 发散 调参，资源/当前停滞 重调度）；R1 -> watch；R0 -> continue。
     """
     level = max_level(risks)
     msgs = [i.message for i in risks]
@@ -655,7 +711,7 @@ def decide(f: dict[str, Any], risks: list[RiskItem], cfg: dict[str, Any]) -> tup
             return "tune", msgs
         if factors & {"swap", "mem", "cpu", "stall", "idle", "stall_current"}:
             return "resize", msgs
-        if factors & {"stagnation", "nan", "neg_ratio", "neg_ratio_current", "restart"}:
+        if factors & {"stagnation", "nan", "neg_ratio", "neg_ratio_current", "restart", "early_low_reward"}:
             return "stop", msgs
         return "watch", msgs
     if level == "R1":

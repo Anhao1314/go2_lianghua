@@ -74,7 +74,7 @@ def _factor_line(factors: dict) -> str:
         "eval_drawdown", "eval_slope_per_1e6", "eval_std_recent",
         "eval_neg_ratio", "eval_neg_ratio_recent", "neg_ratio_current", "progress_ratio",
         "reward_peak_ratio", "approx_kl_last", "kl_divergent", "kl_divergent_streak",
-        "std_last", "ev_neg_streak",
+        "std_last", "ev_neg_streak", "early_low_reward",
         "value_loss_divergent", "report_rows", "verdict_fail_ratio", "success_rate_mean",
         "max_dev_max", "min_clear_min", "falls_mean", "nan_count",
         "snapshot_count", "time_span_minutes", "stall_minutes", "current_stall_minutes",

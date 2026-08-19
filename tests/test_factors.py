@@ -488,5 +488,97 @@ class BalanceFactorsIntegrationTest(unittest.TestCase):
         self.assertEqual(decision, "stop")
 
 
+
+
+class EarlyLowRewardTest(unittest.TestCase):
+    """early_low_reward 新因子：阈值分组、早段判定、规则触发与决策映射。"""
+
+    def test_threshold_grouping(self):
+        c = cfg()
+        self.assertEqual(factors.early_low_reward_threshold("balance", c), 50.0)
+        self.assertEqual(factors.early_low_reward_threshold("balance_v2", c), 50.0)
+        self.assertEqual(factors.early_low_reward_threshold("full_chain", c), 50.0)
+        self.assertEqual(factors.early_low_reward_threshold("traverse", c), 30.0)
+        self.assertEqual(factors.early_low_reward_threshold("traverse_curve_v2", c), 30.0)
+        self.assertEqual(factors.early_low_reward_threshold("other_task", c), 30.0)
+
+    def test_factor_trigger_low_reward(self):
+        evals = frame("eval_points", [
+            ("traverse", "seed00", 100000, 5.0, 0.1, 500.0),
+            ("traverse", "seed00", 300000, 10.0, 0.1, 500.0),
+            ("traverse", "seed00", 700000, 12.0, 0.1, 500.0),
+        ])
+        self.assertTrue(factors.early_low_reward_factor(evals, "traverse", 8000000, cfg()))
+
+    def test_factor_threshold_group_sensitivity(self):
+        # 奖励 35/40/45：traverse 阈值 30 -> 不触发；balance 阈值 50 -> 触发
+        evals = frame("eval_points", [
+            ("t", "s", 100000, 35.0, 0.1, 500.0),
+            ("t", "s", 300000, 40.0, 0.1, 500.0),
+            ("t", "s", 700000, 45.0, 0.1, 500.0),
+        ])
+        self.assertFalse(factors.early_low_reward_factor(evals, "traverse", 8000000, cfg()))
+        self.assertTrue(factors.early_low_reward_factor(evals, "balance", 8000000, cfg()))
+
+    def test_factor_not_trigger_high_reward(self):
+        evals = frame("eval_points", [
+            ("traverse", "seed00", 100000, 40.0, 0.1, 500.0),
+            ("traverse", "seed00", 300000, 45.0, 0.1, 500.0),
+            ("traverse", "seed00", 700000, 50.0, 0.1, 500.0),
+        ])
+        self.assertFalse(factors.early_low_reward_factor(evals, "traverse", 8000000, cfg()))
+
+    def test_factor_insufficient_points(self):
+        evals = frame("eval_points", [
+            ("traverse", "seed00", 100000, 5.0, 0.1, 500.0),
+            ("traverse", "seed00", 300000, 10.0, 0.1, 500.0),
+        ])
+        self.assertFalse(factors.early_low_reward_factor(evals, "traverse", 8000000, cfg()))
+
+    def test_factor_no_data_or_total_steps(self):
+        self.assertIsNone(factors.early_low_reward_factor(
+            pd.DataFrame(), "traverse", 8000000, cfg()))
+        self.assertIsNone(factors.early_low_reward_factor(
+            None, "traverse", 8000000, cfg()))
+        evals = frame("eval_points", [
+            ("traverse", "seed00", 100000, 5.0, 0.1, 500.0),
+            ("traverse", "seed00", 300000, 10.0, 0.1, 500.0),
+            ("traverse", "seed00", 700000, 12.0, 0.1, 500.0),
+        ])
+        self.assertIsNone(factors.early_low_reward_factor(evals, "traverse", None, cfg()))
+        self.assertIsNone(factors.early_low_reward_factor(evals, "traverse", 0.0, cfg()))
+
+    def test_run_factors_output(self):
+        tables = {
+            "eval_points": frame("eval_points", [
+                ("traverse", "seed00", 100000, 5.0, 0.1, 500.0),
+                ("traverse", "seed00", 300000, 10.0, 0.1, 500.0),
+                ("traverse", "seed00", 700000, 12.0, 0.1, 500.0),
+            ]),
+            "tb_points": frame("tb_points", []),
+            "snapshots": frame("snapshots", []),
+            "reports": frame("reports", []),
+            "runs": frame("runs", [
+                ("traverse", "seed00", "", "", 0, False, 8000000, "",
+                 "", "", "", None, None, None),
+            ]),
+        }
+        f = factors.run_factors("traverse", "seed00", tables, cfg())
+        self.assertTrue(f["early_low_reward"])
+
+    def test_run_risk_items_r2(self):
+        risks = factors.run_risk_items({"early_low_reward": True}, cfg())
+        hit = [i for i in risks if i.factor == "early_low_reward"]
+        self.assertEqual(len(hit), 1)
+        self.assertEqual(hit[0].level, "R2")
+        self.assertIn("从未学会型", hit[0].message)
+
+    def test_decide_stop(self):
+        f = {"eval_drawdown": 0.0, "early_low_reward": True}
+        risks = [factors.RiskItem("R2", "eval_points", "early_low_reward", "x")]
+        decision, _ = factors.decide(f, risks, cfg())
+        self.assertEqual(decision, "stop")
+
+
 if __name__ == "__main__":
     unittest.main()

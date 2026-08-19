@@ -282,6 +282,117 @@ class OddsTableTest(unittest.TestCase):
         odds = br.build_odds_table(rows, cfg())
         self.assertEqual(odds.iloc[0]["t_end_method_dist"], "step_rate:1;task_mean:1")
 
+class EarlyLowRewardReplayTest(unittest.TestCase):
+    """early_low_reward 回放与归因：以全量窗口因子为准，窗口闭合步长触发。"""
+
+    def _runs(self, task="t", seed="s", total_steps=600000):
+        return frame("runs", [
+            (task, seed, "local", "running", 0, False, total_steps, 4,
+             None, None, None, None, None, None),
+        ])
+
+    def _evals(self, rows, task="t", seed="s"):
+        return frame("eval_points", [
+            (task, seed, ts, rew, 0.1, 500.0) for ts, rew in rows
+        ])
+
+    def _tb(self, steps, task="t", seed="s"):
+        return frame("tb_points", tb_rows(steps, task, seed))
+
+    def test_no_snapshot_low_reward_triggers_at_window_close(self):
+        tables = {
+            "eval_points": self._evals([(50000, 10.0), (100000, -5.0), (150000, -8.0)]),
+            "tb_points": self._tb([50000, 100000, 150000]),
+            "runs": self._runs(),
+        }
+        events = br.replay_run(tables, "t", "s", cfg(), step_minutes=10)
+        self.assertEqual(len(events), 1)
+        ev = events[0]
+        self.assertEqual(ev.level, "R2")
+        self.assertEqual(ev.decision, "stop")
+        self.assertEqual(ev.trigger_time, 150000.0)  # 600000*0.25 窗口闭合步长
+        self.assertEqual(ev.factors, ("early_low_reward",))
+        self.assertEqual(ev.progress_ratio, 0.25)
+
+    def test_no_snapshot_high_reward_no_event(self):
+        tables = {
+            "eval_points": self._evals([(50000, 100.0), (100000, 110.0), (150000, 120.0)]),
+            "tb_points": self._tb([50000, 100000, 150000]),
+            "runs": self._runs(),
+        }
+        self.assertEqual(br.replay_run(tables, "t", "s", cfg(), step_minutes=10), [])
+
+    def test_no_snapshot_late_early_point_invalidates(self):
+        # 窗口内第 4 点 reward=35 >= 阈值 30：全量因子 False，前缀首真不作数
+        tables = {
+            "eval_points": self._evals([
+                (50000, 10.0), (100000, 5.0), (140000, 8.0), (150000, 35.0)]),
+            "tb_points": self._tb([50000, 100000, 140000, 150000]),
+            "runs": self._runs(),
+        }
+        self.assertEqual(br.replay_run(tables, "t", "s", cfg(), step_minutes=10), [])
+
+    def test_early_attributed_to_later_stop(self):
+        # 首次 stop 在窗口闭合前（2 点回撤 50%），early 事后归因并入
+        tables = {
+            "eval_points": self._evals([
+                (50000, 20.0), (100000, 10.0), (150000, 5.0)]),
+            "tb_points": self._tb([50000, 100000, 150000]),
+            "snapshots": frame("snapshots", snaps_rows(
+                [1000.0, 2000.0, 3000.0], [50000.0, 100000.0, 150000.0])),
+            "runs": self._runs(),
+        }
+        events = br.replay_run(tables, "t", "s", cfg(), step_minutes=10)
+        stops = [e for e in events if e.decision == "stop"]
+        self.assertTrue(stops)
+        self.assertNotIn("early_low_reward", stops[0].factors)
+        rows = br.enrich_stop_events(stops, tables, cfg())
+        self.assertIn("early_low_reward", rows[0]["factors"].split(";"))
+
+    def test_early_included_directly_when_window_complete(self):
+        # stop 时窗口已闭合（3 点均 < 阈值）：early 直接进入 stop 因子集
+        tables = {
+            "eval_points": self._evals([
+                (50000, 20.0), (100000, 15.0), (150000, 4.0), (200000, 4.0)]),
+            "tb_points": self._tb([50000, 100000, 150000, 200000]),
+            "snapshots": frame("snapshots", snaps_rows(
+                [1000.0, 2000.0, 3000.0, 4000.0],
+                [50000.0, 100000.0, 150000.0, 200000.0])),
+            "runs": self._runs(),
+        }
+        events = br.replay_run(tables, "t", "s", cfg(), step_minutes=10)
+        stops = [e for e in events if e.decision == "stop"]
+        self.assertTrue(stops)
+        self.assertIn("early_low_reward", stops[0].factors)
+
+    def test_early_removed_when_final_factor_false(self):
+        # stop 时前缀含 early（3 点 < 30），但窗口内后续点 35 >= 30：守卫移除
+        tables = {
+            "eval_points": self._evals([
+                (50000, 5.0), (100000, 10.0), (140000, 12.0), (150000, 35.0)]),
+            "tb_points": self._tb([50000, 100000, 140000, 150000]),
+            "snapshots": frame("snapshots", snaps_rows(
+                [1000.0, 2000.0, 2800.0, 3000.0, 4000.0],
+                [50000.0, 100000.0, 140000.0, 150000.0, 200000.0])),
+            "runs": self._runs(),
+        }
+        events = br.replay_run(tables, "t", "s", cfg(), step_minutes=10)
+        stops = [e for e in events if e.decision == "stop"]
+        self.assertTrue(stops)
+        self.assertIn("early_low_reward", stops[0].factors)
+        rows = br.enrich_stop_events(stops, tables, cfg())
+        self.assertNotIn("early_low_reward", rows[0]["factors"].split(";"))
+
+    def test_estimate_t_end_no_snapshot(self):
+        tables = {
+            "eval_points": self._evals([(50000, 10.0), (100000, -5.0), (150000, -8.0)]),
+            "runs": self._runs(),
+        }
+        t_end, method = br.estimate_t_end(tables, "t", "s", 150000.0)
+        self.assertEqual(method, "no_snapshot")
+        self.assertEqual(t_end, 150000.0)
+
+
 
 if __name__ == "__main__":
     unittest.main()

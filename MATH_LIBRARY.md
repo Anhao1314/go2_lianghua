@@ -2,6 +2,7 @@
 
 > 2026-08-18 全量公式审计结论：1 个关键 bug（screening Config A 数据泄漏）已修复、4 处命名歧义已澄清、1 个缺失因子（eval_neg_ratio）已补齐。
 > 2026-08-18 第二轮（P0 后续）：基于 consistency_check 差异统一离线/实时因子口径，新增 4 因子（kl_divergent / current_stall_minutes / restart_count / neg_ratio_current）。
+> 2026-08-19：上线 `early_low_reward`（前 25% 步数评估奖励始终低于阈值 → R2 stop，建议制）。基于 19 个历史 run 回测：触发 7 个（6 fail + 1 unknown）、0 pass 误杀；pass 样本仅 2 个，需持续跟踪样本外验证。阈值：traverse*=30、balance*/full_chain*=50。
 > 本文是 factors/quant/modeling/label_enrichment/data_screening/backtest_* 全部公式的权威口径说明；代码注释与本文不一致时以本文为准。
 
 ## 一、审计状态与修复记录（2026-08-18）
@@ -19,8 +20,9 @@
 | 口径统一 3 | `stall_minutes`：离线 max-so-far（持久）vs 实时当前（恢复归零），80/80 语义差异 | 实时 `stall_minutes` 改 max-so-far（`max_stall_minutes` 状态）；新增 `current_stall_minutes`（归零口径） |
 | 口径统一 4 | `eval_neg_ratio`：实时重启时重置 vs 离线全部尝试混合（38/80 不一致，5 次回退） | 实时新增 `total_neg_count/total_poll_count`（重启不重置）；原计数迁为 `neg_ratio_current`（当前尝试） |
 | 新增因子 | 重启/数据损坏信号缺失 | 新增 `kl_divergent`（KL 超界，NaN 计发散）、`restart_count`（规格回退 >100k→<10k）、`neg_ratio_current`（重启分段） |
+| 新增因子 | 从未学会型失败信号缺失（低奖励 run 早期不报警） | 新增 `early_low_reward`（前 25% 步数 max(mean_reward) < 任务阈值 → R2 stop，建议制）；实时状态机 eval_history 同规则计算 |
 
-## 二、因子公式总表（六类 34 因子 + 富化标签）
+## 二、因子公式总表（六类 35 因子 + 富化标签）
 
 ### 收敛/稳定（eval_points，每 50k 步评估）
 | 因子 | 公式 | 说明 |
@@ -36,6 +38,7 @@
 | eval_neg_ratio_recent | mean(mean_reward < 0)，最近 5 点 | 崩溃早期信号，先于回撤报警 |
 | neg_ratio_current | mean(mean_reward < 0)，最后一次规格回退之后的 eval 点 | 当前训练尝试占比（重启感知）；无回退时 = eval_neg_ratio |
 | progress_ratio | eval_last_timesteps / total_steps | 训练进度 |
+| early_low_reward | max(早段点 mean_reward) < 任务阈值；早段点 = timesteps ≤ total_steps×0.25 的有效 eval 点（≥3 点） | 从未学会型失败 → R2 stop（建议制）；阈值 traverse*=30 / balance*=50 / full_chain*=50 / 默认 30；total_steps 优先 runs 行，缺失回退最后 eval timesteps |
 
 ### 健康（tb_points，TensorBoard rollout）
 | 因子 | 公式 | 说明 |
@@ -76,6 +79,7 @@ daily_cost / weekly_cost / monthly_cost / total_cost（元）、cache_rate = cac
 - **当前停滞**：`current_stall_minutes` = 窗口/轮询末端仍在持续的停滞段分钟数（timesteps 变化即归零）；与 `stall_minutes`（max-so-far，持久）并存，规则复用 watch=30/warn=60。
 - **重启计数**：`restart_count` = timesteps 从 >100k 回退到 <10k 的次数（规格定义，如 1384448→12288 不计）；≥2 → R2，≥4 → R3。离线从 snapshots 序列检测，实时状态机在回退轮 +1 并重置当前尝试计数器（total_* 不重置）。
 - **当前尝试占比**：`neg_ratio_current` = 最后一次重启点之后 eval 点的负奖励占比（离线以最后回退行的截面时间为分段边界）；无回退/无快照时 = `eval_neg_ratio`。
+- **从未学会型（early_low_reward）**：早段点 = `timesteps <= total_steps × 0.25` 的有效 eval 点；`len >= min_early_points(3)` 且 `max(mean_reward) < 任务阈值`（traverse*=30、balance*/full_chain*=50、其他 30）→ True → R2 stop（建议制，不自动止损）。实时侧以状态机 eval_history（按奖励值变化去重）同规则计算。基于 19 个历史 run 回测：触发 7 个（6 fail + 1 unknown）、0 pass 误杀；pass 样本仅 2 个，需持续样本外跟踪。
 - **负奖励占比**：`eval_neg_ratio = mean(reward < 0)`；recent 版取最近 5 点。balance/seed00 = 37/80 = 0.4625（R1），recent = 1.0（R2 → stop）。
 - **停滞判定**：进度 ≥60% 且 最终奖励 < 峰值 ×60% → R2 stagnation。
 - **stall/idle**：timesteps 无增长持续 ≥30/60 分钟（watch/warn）；CPU <20% 且训练未完成持续 ≥60 分钟疑似卡死。
@@ -106,6 +110,7 @@ daily_cost / weekly_cost / monthly_cost / total_cost（元）、cache_rate = cac
 | restart_count | - | r2 2 / r3 4 | 规格回退次数 |
 | neg_ratio_current | 0.30 | severe 0.50 | 复用 neg_ratio 阈值（当前尝试） |
 | current_stall_minutes | 30 | 60 | 复用 stall_minutes 阈值（当前停滞） |
+| early_low_reward | traverse 30 / balance 50 / full_chain 50 / 默认 30 | min_early_points 3 | 前 25% 步数奖励始终低于阈值 → R2 stop |
 
 ## 五、命名歧义澄清表（不重命名）
 

@@ -107,6 +107,13 @@
       "watch": 30,
       "warn": 60
     },
+    "early_low_reward": {
+      "traverse_threshold": 30,
+      "balance_threshold": 50,
+      "full_chain_threshold": 50,
+      "default_threshold": 30,
+      "min_early_points": 3
+    },
     "budget": {
       "daily": 5.0,
       "weekly": 30.0,
