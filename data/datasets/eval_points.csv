@@ -362,6 +362,14 @@ full_chain_simple,seed00,250000,453.3652,0.0123,530.0
 full_chain_simple,seed00,300000,456.4023,0.0,530.0
 full_chain_simple,seed00,350000,462.2235,1.6026,531.0
 full_chain_simple,seed00,400000,472.2915,0.2605,533.0
+full_chain_simple,seed00,450000,477.5259,0.113,535.0
+full_chain_simple,seed00,500000,480.798,0.3513,536.0
+full_chain_simple,seed00,550000,490.751,0.2828,539.0
+full_chain_simple,seed00,600000,485.8727,1.1689,534.0
+full_chain_simple,seed00,650000,489.8701,0.875,539.0
+full_chain_simple,seed00,700000,480.0976,0.2933,532.0
+full_chain_simple,seed00,750000,481.2409,0.0,532.0
+full_chain_simple,seed00,800000,493.2775,0.577,533.0
 full_chain_v1,seed00,1000,147.0269,313.2087,175.8
 full_chain_v1,seed00,2000,-9.5783,0.0,12.0
 full_chain_v1,seed00,3000,-9.578,0.0,12.0
