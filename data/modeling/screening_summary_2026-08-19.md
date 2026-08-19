@@ -40,13 +40,13 @@
 
 | 配置 | 训练集 | 测试集 | R2 | MAE | 样本(n_train/n_test) |
 |---|---|---|---|---|---|
-| A | screened | **full**（LOO 无泄漏） | -3.7912 | 194541.7 | 6/18 |
-| B | full | **full** | -0.856 | 105812.0 | 18/18 |
+| A | screened | **full**（LOO 无泄漏） | -1.9191 | 176640.7 | 6/18 |
+| B | full | **full** | -0.786 | 103411.1 | 18/18 |
 
 ### verdict 分类
 
-- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.9333（训练 pass/fail = 2/13，测试 n=15）
-- B（full 训练，full 测试 LOO）：accuracy 0.765（pass/fail = 2/15）
+- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.9375（训练 pass/fail = 2/13，测试 n=16）
+- B（full 训练，full 测试 LOO）：accuracy 0.833（pass/fail = 2/16）
 
 ## ⚠️ SURVIVORSHIP BIAS WARNING
 

@@ -22,7 +22,7 @@ traverse_flat_slope,seed00,False,fail,0.0,104365.72848129272,formal_eval,2026-08
 traverse_flat_slope,seed01,False,,,19153.72599887848,auto,2026-08-18 21:45:07
 traverse_flat_slope,seed02,False,,,19153.72599887848,auto,2026-08-18 21:45:07
 traverse_flat_slope_v1,seed00,True,fail,0.0,,manual_curve,2026-08-19 10:04:10
-traverse_slope,seed00,False,fail,0.0,89956.34326958656,manual,2026-08-18 20:00:00
+traverse_slope,seed00,False,fail,0.0,89956.34326958656,formal_eval,2026-08-19 16:21:10
 traverse_slope,seed01,False,,,19120.565873146057,auto,2026-08-18 21:45:07
 traverse_slope,seed02,False,,,19120.565873146057,auto,2026-08-18 21:45:07
 traverse_slope_v1,seed00,True,fail,0.0,,manual_curve,2026-08-19 10:04:10

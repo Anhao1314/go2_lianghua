@@ -177,3 +177,15 @@ daily_cost / weekly_cost / monthly_cost / total_cost（元）、cache_rate = cac
 - slope（当前 41%，奖励 +8.72）验收结果：early_low_reward 是否误杀？
 - full_chain_simple 启动后：规则在新任务上的表现
 - 持续跟踪每条规则在样本外数据上的独立命中数
+
+### 样本外验证记录
+
+#### traverse_slope/seed00（2026-08-19，第一次样本外验证）
+- 训练：从 best 断点续训到 8M
+- 前 25%（2M）内最大奖励：-1.78（@1.4M），远低于 traverse 阈值 30
+- 首次可判定步数：80 万步
+- early_low_reward 触发：是
+- 最终验收：fail（0% 成功率，平均距离 0.87m）
+- 判断：正确命中（非误杀）
+- 若 80 万步早停，可省约 7M 步（约 5-6 小时算力）
+- 结论：规则在第一个样本外数据上表现符合预期，继续跟踪
