@@ -545,6 +545,13 @@ traverse_curve,seed00,650000,5.095,0.4068,300.0
 traverse_curve,seed00,700000,5.2408,0.4634,300.0
 traverse_curve,seed00,750000,4.0984,0.4981,300.0
 traverse_curve,seed00,800000,5.1274,0.1787,300.0
+traverse_curve,seed00,850000,3.9295,0.5486,300.0
+traverse_curve,seed00,900000,4.5482,0.2566,300.0
+traverse_curve,seed00,950000,3.9757,0.2606,300.0
+traverse_curve,seed00,1000000,2.284,0.4779,300.0
+traverse_curve,seed00,1050000,3.1535,0.3636,300.0
+traverse_curve,seed00,1100000,3.4651,1.9698,300.2
+traverse_curve,seed00,1150000,3.0198,0.3475,301.0
 traverse_curve_v1,seed00,50000,12.6381,0.1079,300.4
 traverse_curve_v1,seed00,100000,-36.9381,0.0002,36.0
 traverse_curve_v1,seed00,150000,-26.4669,0.0387,49.0
@@ -791,6 +798,11 @@ traverse_flat_slope,seed00,850000,-6.4953,0.6402,210.6
 traverse_flat_slope,seed00,900000,-4.2767,1.4517,260.6
 traverse_flat_slope,seed00,950000,-3.7391,3.2554,290.6
 traverse_flat_slope,seed00,1000000,8.3989,0.3855,301.0
+traverse_flat_slope,seed00,1050000,9.6433,0.3986,300.0
+traverse_flat_slope,seed00,1100000,9.0228,0.3164,300.0
+traverse_flat_slope,seed00,1150000,24.2968,10.6169,511.4
+traverse_flat_slope,seed00,1200000,13.1613,2.7086,375.2
+traverse_flat_slope,seed00,1250000,1.5991,7.0936,650.0
 traverse_flat_slope_v1,seed00,50000,15.5477,0.1546,300.4
 traverse_flat_slope_v1,seed00,100000,-35.2258,0.0003,36.0
 traverse_flat_slope_v1,seed00,150000,-29.1405,0.0,52.0
@@ -879,6 +891,11 @@ traverse_slope,seed00,900000,-4.5267,1.2819,490.2
 traverse_slope,seed00,950000,-5.9943,3.32,480.2
 traverse_slope,seed00,1000000,-4.7019,1.5464,448.8
 traverse_slope,seed00,1050000,-3.8733,1.8482,431.2
+traverse_slope,seed00,1100000,-4.0682,2.1851,436.8
+traverse_slope,seed00,1150000,-6.8848,1.525,398.6
+traverse_slope,seed00,1200000,-5.2266,1.7595,406.4
+traverse_slope,seed00,1250000,-4.9442,3.3904,412.8
+traverse_slope,seed00,1300000,-8.0749,2.8586,456.8
 traverse_slope_v1,seed00,1800000,21.7462,7.2221,585.8
 traverse_slope_v1,seed00,1850000,-0.8869,4.4388,689.0
 traverse_slope_v1,seed00,1900000,26.8397,13.4593,904.2
