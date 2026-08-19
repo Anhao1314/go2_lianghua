@@ -126,3 +126,54 @@ daily_cost / weekly_cost / monthly_cost / total_cost（元）、cache_rate = cac
 | eval_neg_ratio | 全部尝试混合负奖励占比（重启不重置） | 当前尝试占比——后者为 neg_ratio_current |
 | kl_divergent | 当前 tb 点 KL 不在 (0,1]，NaN 也计发散 | 仅 >1.0 才发散（NaN/缺失同样发散） |
 | restart_count | 规格回退（>100k → <10k）次数 | 任意步数回退（12288 等小回退不计） |
+
+## 六、规则独立贡献审计（2026-08-19）
+
+> ⚠️ 本审计基于 11 个首次 stop 事件的回测分析，当前 pass 样本仅 2 个，结论待 slope、full_chain_simple 等样本外数据持续验证。不构成规则精简依据。
+
+### 审计方法
+对每个 stop 事件的触发因子集合，计算「删除某规则后该 run 是否仍被其他规则覆盖」，以此衡量每条规则的独立贡献。
+
+### 核心结论
+
+| 规则 | 触发数 | 独立命中数 | 评估 |
+|---|---|---|---|
+| early_low_reward | 7 | 4 | ✅ 不可替代（唯一覆盖「从未学会型」） |
+| drawdown | 6 | 0 | ⚠️ 无独立命中 |
+| stall | 6 | 0 | ⚠️ 无独立命中 |
+| cpu | 5 | 0 | ⚠️ 无独立命中 |
+| neg_ratio | 5 | 0 | ⚠️ 无独立命中 |
+| neg_ratio_current | 4 | 0 | ❌ neg_ratio 的完全子集 |
+| restart | 2 | 0 | ⚠️ 无独立命中 |
+| std | 2 | 0 | ⚠️ 无独立命中 |
+| approx_kl | 2 | 0 | ❌ cpu/drawdown/stall 的完全子集 |
+| kl_divergent | 1 | 0 | ❌ 6 条规则的完全子集 |
+| std_reward_collapse | 1 | 0 | ❌ 7 条规则的完全子集 |
+
+### early_low_reward 的 4 个独立命中
+删除 early_low_reward 后，以下 4 个 run 不再被任何规则触发：
+- traverse_curve_v1/seed00（fail）
+- traverse_curve_v2/seed00（fail）
+- traverse_curve_v3/seed00（fail）
+- traverse_v1/seed00（unknown）
+
+→ early_low_reward 是当前唯一能覆盖「从未学会型」失败模式的规则。
+
+### 冗余关系
+- neg_ratio_current ⊆ neg_ratio（4 个触发全部重叠）
+- std_reward_collapse ⊆ std（1 个触发全部重叠）
+- approx_kl ⊆ cpu ∩ drawdown ∩ stall（2 个触发全部重叠）
+- kl_divergent ⊆ 6 条规则的交集（1 个触发全部重叠）
+- drawdown ↔ stall：Jaccard=0.71（高度相关）
+- cpu ↔ drawdown：Jaccard=0.57（高度相关）
+- cpu ↔ stall：Jaccard=0.57（高度相关）
+
+### 为什么不删除冗余规则
+1. 小样本（11 个 stop 事件）下删除风险大，冗余规则可能在未来数据上有独立价值
+2. 规则有诊断价值：即使触发重叠，不同规则指向不同失败原因（cpu=资源、kl=发散、stall=停滞），对训练端调参有参考意义
+3. 等 pass 样本 ≥5 且 stop 事件 ≥20 后，再做规则精简
+
+### 待验证事项
+- slope（当前 41%，奖励 +8.72）验收结果：early_low_reward 是否误杀？
+- full_chain_simple 启动后：规则在新任务上的表现
+- 持续跟踪每条规则在样本外数据上的独立命中数
