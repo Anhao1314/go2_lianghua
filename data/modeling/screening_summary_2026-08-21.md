@@ -2,16 +2,16 @@
 
 ## 一、筛选结果概览
 
-- 总 run 数：39；good 23 / insufficient 13 / anomalous 3
+- 总 run 数：40；good 24 / insufficient 13 / anomalous 3
 
 ## 二、逐规则通过率
 
 | 规则 | 说明 | 通过 | 失败 |
 |---|---|---|---|
-| rule1 | eval 点数 ≥ 阈值 | 23 | 16 |
-| rule2 | 训练规模 ≥ 阈值 | 27 | 12 |
-| rule3 | 无解析异常（清洗后 KL / NaN） | 39 | 0 |
-| rule4 | 曲线可辨识（std > 阈值） | 36 | 3 |
+| rule1 | eval 点数 ≥ 阈值 | 24 | 16 |
+| rule2 | 训练规模 ≥ 阈值 | 28 | 12 |
+| rule3 | 无解析异常（清洗后 KL / NaN） | 40 | 0 |
+| rule4 | 曲线可辨识（std > 阈值） | 37 | 3 |
 
 ## 三、异常/不足 run 归档
 
@@ -43,13 +43,13 @@
 
 | 配置 | 训练集 | 测试集 | R2 | MAE | 样本(n_train/n_test) |
 |---|---|---|---|---|---|
-| A | screened | **full**（LOO 无泄漏） | -1.4185 | 211020.2 | 8/19 |
-| B | full | **full** | -0.564 | 132680.4 | 19/19 |
+| A | screened | **full**（LOO 无泄漏） | -1.4524 | 213450.7 | 8/19 |
+| B | full | **full** | -0.552 | 131567.9 | 19/19 |
 
 ### verdict 分类
 
-- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.9167（训练 pass/fail = 2/18，测试 n=24）
-- B（full 训练，full 测试 LOO）：accuracy 0.885（pass/fail = 3/23）
+- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.8519（训练 pass/fail = 3/18，测试 n=27）
+- B（full 训练，full 测试 LOO）：accuracy 0.926（pass/fail = 4/23）
 
 ## ⚠️ SURVIVORSHIP BIAS WARNING
 
