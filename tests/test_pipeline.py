@@ -97,11 +97,11 @@ class LoadAllTablesTest(unittest.TestCase):
             set(tables),
             {"runs", "eval_points", "tb_points", "snapshots", "reports", "costs", "labels"},
         )
-        self.assertEqual(len(tables["runs"]), 37)
-        self.assertEqual(len(tables["eval_points"]), 1692)
-        self.assertEqual(len(tables["tb_points"]), 11879)
-        self.assertEqual(len(tables["snapshots"]), 27002)
-        self.assertEqual(len(tables["reports"]), 20)
+        self.assertEqual(len(tables["runs"]), 38)
+        self.assertEqual(len(tables["eval_points"]), 1696)
+        self.assertEqual(len(tables["tb_points"]), 11903)
+        self.assertEqual(len(tables["snapshots"]), 27812)
+        self.assertEqual(len(tables["reports"]), 21)
         self.assertEqual(len(tables["costs"]), 4)
         self.assertEqual(len(tables["labels"]), 38)
 
@@ -265,4 +265,3 @@ class IndividualScriptsStillWorkTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
