@@ -11,7 +11,8 @@
     "traverse_flat_slope",
     "traverse_curve",
     "traverse_curve_curriculum",
-    "traverse_curve_dagger"
+    "traverse_curve_dagger",
+    "traverse_curve_dagger_ppo"
   ],
   "archived_tasks": [
     "traverse",
