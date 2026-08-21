@@ -12,7 +12,8 @@
     "traverse_curve",
     "traverse_curve_curriculum",
     "traverse_curve_dagger",
-    "traverse_curve_dagger_ppo"
+    "traverse_curve_dagger_ppo",
+    "traverse_curve_high_level"
   ],
   "archived_tasks": [
     "traverse",
