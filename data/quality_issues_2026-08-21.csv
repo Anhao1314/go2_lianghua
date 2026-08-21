@@ -41,95 +41,42 @@ DQ039,A,critical,traverse_slope_v1,seed00,missing_report,verdict=fail 但 report
 DQ040,A,critical,traverse_v1,seed01,missing_report,verdict=pass 但 reports.csv 无对应验收行,补充正式验收报告或调整标签来源
 DQ041,A,critical,traverse_v1,seed02,missing_report,verdict=pass 但 reports.csv 无对应验收行,补充正式验收报告或调整标签来源
 DQ042,A,critical,traverse,seed02,missing_eval_data,verdict=fail 但无任何 eval 点（无法验证训练表现）,补充 eval 数据或改为 unknown
-DQ043,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=501.9331 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ044,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=500.1802 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ045,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=510.8329 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ046,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=506.5604 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ047,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=507.7487 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ048,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=502.5579 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ049,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=506.1243 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ050,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=508.0516 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ051,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=500.83 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ052,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=514.8645 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ053,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=515.3718 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ054,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=521.6335 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ055,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=523.6896 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ056,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=519.5035 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ057,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=516.8789 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ058,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=518.4048 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ059,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=515.9738 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ060,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=517.9587 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ061,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=512.4451 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ062,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=503.8975 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ063,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=509.2973 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ064,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=503.0333 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ065,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=514.0091 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ066,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=513.7031 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ067,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=512.1712 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ068,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=514.0312 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ069,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=516.2096 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ070,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=517.1577 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ071,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=520.1718 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ072,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=510.4705 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ073,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=517.736 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ074,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=525.1246 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ075,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=520.2081 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ076,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=502.8749 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ077,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=505.9768 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ078,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=508.132 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ079,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=515.1157 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ080,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=509.6186 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ081,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=507.1906 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ082,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=507.5644 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ083,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=506.3502 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ084,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=517.4032 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ085,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=517.349 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ086,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=505.9798 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ087,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=510.4013 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ088,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=506.2571 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ089,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=507.438 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ090,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=506.4129 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ091,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=513.5442 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ092,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=512.6844 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ093,B,warning,full_chain_simple,seed00,reward_outlier,"mean_reward=511.9575 超出 [-200.0, 500.0]（物理不合理）",检查 eval 采集或单位换算
-DQ094,C,warning,balance,seed00,incomplete_training,末 eval 点 4000000 与 total_steps=8000000 偏差 50%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
-DQ095,C,info,full_chain,seed00,missing_early_eval,首个 eval 点 @1950000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
-DQ096,C,warning,traverse,seed00,incomplete_training,末 eval 点 700000 与 total_steps=8000000 偏差 91%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
-DQ097,C,info,traverse_curve_curriculum,s2,missing_early_eval,首个 eval 点 @1200000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
-DQ098,C,warning,traverse_curve_curriculum,s2,incomplete_training,末 eval 点 2150000 与 total_steps=1000000 偏差 115%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
-DQ099,C,info,traverse_curve_curriculum,s3,missing_early_eval,首个 eval 点 @2350000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
-DQ100,C,warning,traverse_curve_curriculum,s3,incomplete_training,末 eval 点 3300000 与 total_steps=1000000 偏差 230%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
-DQ101,C,info,traverse_curve_curriculum,s4,missing_early_eval,首个 eval 点 @3500000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
-DQ102,C,warning,traverse_curve_curriculum,s4,incomplete_training,末 eval 点 4450000 与 total_steps=1000000 偏差 345%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
-DQ103,C,warning,traverse_curve_dagger_ppo,seed00,incomplete_training,末 eval 点 200000 与 total_steps=2000000 偏差 90%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
-DQ104,C,info,traverse_flat_slope,seed00,missing_early_eval,首个 eval 点 @750000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
-DQ105,C,info,traverse_slope,seed00,missing_early_eval,首个 eval 点 @700000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
-DQ106,C,warning,traverse_slope,seed00,incomplete_training,末 eval 点 8000000 与 total_steps=4000000 偏差 100%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
-DQ107,C,info,traverse_slope_v1,seed00,missing_early_eval,首个 eval 点 @1800000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
-DQ108,E,critical,balance,seed00,verdict_mismatch,"三表 verdict 不一致: {'runs': 'fail', 'labels': 'fail', 'reports': 'pass'}",以 manual_labels.csv 人工层为准修正
-DQ109,E,critical,traverse_curve_v2,seed00,verdict_mismatch,"三表 verdict 不一致: {'runs': 'fail', 'labels': 'fail', 'reports': 'pass'}",以 manual_labels.csv 人工层为准修正
-DQ110,E,warning,full_chain_simple,seed00,completed_verdict_mismatch,completed=True 但 verdict=未设置（应为 pass/fail）,验收后补标或改 completed
-DQ111,F,warning,balance,seed01,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
-DQ112,F,warning,balance,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
-DQ113,F,warning,full_chain,seed01,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
-DQ114,F,warning,full_chain,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
-DQ115,F,warning,traverse,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
-DQ116,F,warning,traverse_curve,seed01,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
-DQ117,F,warning,traverse_curve,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
-DQ118,F,warning,traverse_flat_slope,seed01,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
-DQ119,F,warning,traverse_flat_slope,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
-DQ120,F,warning,traverse_slope,seed01,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
-DQ121,F,warning,traverse_slope,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
-DQ122,F,warning,balance,seed00,total_steps_mismatch,total_steps=8000000 与 eval 末点 4000000 偏差 50%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
-DQ123,F,warning,traverse,seed00,total_steps_mismatch,total_steps=8000000 与 eval 末点 700000 偏差 91%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
-DQ124,F,warning,traverse_curve_curriculum,s2,total_steps_mismatch,total_steps=1000000 与 eval 末点 2150000 偏差 115%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
-DQ125,F,warning,traverse_curve_curriculum,s3,total_steps_mismatch,total_steps=1000000 与 eval 末点 3300000 偏差 230%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
-DQ126,F,warning,traverse_curve_curriculum,s4,total_steps_mismatch,total_steps=1000000 与 eval 末点 4450000 偏差 345%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
-DQ127,F,warning,traverse_curve_dagger_ppo,seed00,total_steps_mismatch,total_steps=2000000 与 eval 末点 200000 偏差 90%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
-DQ128,F,warning,traverse_slope,seed00,total_steps_mismatch,total_steps=4000000 与 eval 末点 8000000 偏差 100%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
-DQ129,F,warning,traverse,seed02,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
-DQ130,F,warning,traverse,seed02,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
-DQ131,F,warning,traverse,seed02,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
-DQ132,F,warning,traverse,seed02,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
-DQ133,F,warning,traverse,seed02,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
-DQ134,F,warning,traverse_curve_curriculum,seed00,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
+DQ043,C,warning,balance,seed00,incomplete_training,末 eval 点 4000000 与 total_steps=8000000 偏差 50%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
+DQ044,C,info,full_chain,seed00,missing_early_eval,首个 eval 点 @1950000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
+DQ045,C,warning,traverse,seed00,incomplete_training,末 eval 点 700000 与 total_steps=8000000 偏差 91%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
+DQ046,C,info,traverse_curve_curriculum,s2,missing_early_eval,首个 eval 点 @1200000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
+DQ047,C,warning,traverse_curve_curriculum,s2,incomplete_training,末 eval 点 2150000 与 total_steps=1000000 偏差 115%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
+DQ048,C,info,traverse_curve_curriculum,s3,missing_early_eval,首个 eval 点 @2350000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
+DQ049,C,warning,traverse_curve_curriculum,s3,incomplete_training,末 eval 点 3300000 与 total_steps=1000000 偏差 230%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
+DQ050,C,info,traverse_curve_curriculum,s4,missing_early_eval,首个 eval 点 @3500000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
+DQ051,C,warning,traverse_curve_curriculum,s4,incomplete_training,末 eval 点 4450000 与 total_steps=1000000 偏差 345%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
+DQ052,C,warning,traverse_curve_dagger_ppo,seed00,incomplete_training,末 eval 点 200000 与 total_steps=2000000 偏差 90%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
+DQ053,C,info,traverse_flat_slope,seed00,missing_early_eval,首个 eval 点 @750000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
+DQ054,C,info,traverse_slope,seed00,missing_early_eval,首个 eval 点 @700000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
+DQ055,C,warning,traverse_slope,seed00,incomplete_training,末 eval 点 8000000 与 total_steps=4000000 偏差 100%（>20%）,确认是否提前停止/续训（续训 run 以阶段总步数为口径）
+DQ056,C,info,traverse_slope_v1,seed00,missing_early_eval,首个 eval 点 @1800000 步（>200000，前段无 eval）,可能是续训/BC 预热，确认符合预期
+DQ057,E,warning,full_chain_simple,seed00,completed_verdict_mismatch,completed=True 但 verdict=未设置（应为 pass/fail）,验收后补标或改 completed
+DQ058,F,warning,balance,seed01,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
+DQ059,F,warning,balance,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
+DQ060,F,warning,full_chain,seed01,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
+DQ061,F,warning,full_chain,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
+DQ062,F,warning,traverse,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
+DQ063,F,warning,traverse_curve,seed01,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
+DQ064,F,warning,traverse_curve,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
+DQ065,F,warning,traverse_flat_slope,seed01,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
+DQ066,F,warning,traverse_flat_slope,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
+DQ067,F,warning,traverse_slope,seed01,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
+DQ068,F,warning,traverse_slope,seed02,missing_eval_for_run,runs 中有该 run 但 eval_points 无任何点,刚启动可接受，否则补采
+DQ069,F,warning,balance,seed00,total_steps_mismatch,total_steps=8000000 与 eval 末点 4000000 偏差 50%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
+DQ070,F,warning,traverse,seed00,total_steps_mismatch,total_steps=8000000 与 eval 末点 700000 偏差 91%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
+DQ071,F,warning,traverse_curve_curriculum,s2,total_steps_mismatch,total_steps=1000000 与 eval 末点 2150000 偏差 115%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
+DQ072,F,warning,traverse_curve_curriculum,s3,total_steps_mismatch,total_steps=1000000 与 eval 末点 3300000 偏差 230%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
+DQ073,F,warning,traverse_curve_curriculum,s4,total_steps_mismatch,total_steps=1000000 与 eval 末点 4450000 偏差 345%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
+DQ074,F,warning,traverse_curve_dagger_ppo,seed00,total_steps_mismatch,total_steps=2000000 与 eval 末点 200000 偏差 90%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
+DQ075,F,warning,traverse_slope,seed00,total_steps_mismatch,total_steps=4000000 与 eval 末点 8000000 偏差 100%（>20%）,确认续训口径（阶段 total_steps vs 累计步数）
+DQ076,F,warning,traverse,seed02,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
+DQ077,F,warning,traverse,seed02,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
+DQ078,F,warning,traverse,seed02,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
+DQ079,F,warning,traverse,seed02,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
+DQ080,F,warning,traverse,seed02,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
+DQ081,F,warning,traverse_curve_curriculum,seed00,report_without_eval,reports.csv 有验收行但 eval_points 无数据,补充 eval 数据
