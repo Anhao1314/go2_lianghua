@@ -27,6 +27,7 @@ import pandas as pd
 import factors
 import realtime_monitor
 from collector import PROJECT_ROOT, load_config
+from data_utils import load_runs_merged
 
 # webpanel API 保留的最近 eval reward 数量（history 字段）
 HISTORY_SIZE = 20
@@ -156,7 +157,7 @@ def _load_tables(cfg: dict[str, Any]) -> dict[str, pd.DataFrame]:
         "eval_points": pd.read_csv(ds / "eval_points.csv"),
         "tb_points": pd.read_csv(ds / "tb_points.csv"),
         "snapshots": pd.read_csv(ds / "snapshots.csv"),
-        "runs": pd.read_csv(ds / "runs.csv"),
+        "runs": load_runs_merged(cfg),
     }
 
 

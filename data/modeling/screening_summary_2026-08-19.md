@@ -2,16 +2,16 @@
 
 ## 一、筛选结果概览
 
-- 总 run 数：30；good 17 / insufficient 13 / anomalous 0
+- 总 run 数：31；good 19 / insufficient 12 / anomalous 0
 
 ## 二、逐规则通过率
 
 | 规则 | 说明 | 通过 | 失败 |
 |---|---|---|---|
-| rule1 | eval 点数 ≥ 阈值 | 17 | 13 |
-| rule2 | 训练规模 ≥ 阈值 | 20 | 10 |
-| rule3 | 无解析异常（清洗后 KL / NaN） | 30 | 0 |
-| rule4 | 曲线可辨识（std > 阈值） | 30 | 0 |
+| rule1 | eval 点数 ≥ 阈值 | 19 | 12 |
+| rule2 | 训练规模 ≥ 阈值 | 21 | 10 |
+| rule3 | 无解析异常（清洗后 KL / NaN） | 31 | 0 |
+| rule4 | 曲线可辨识（std > 阈值） | 31 | 0 |
 
 ## 三、异常/不足 run 归档
 
@@ -23,7 +23,6 @@
 | full_chain | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | full_chain_v1 | seed00 | insufficient | rule1: eval 点数 4 < 10;rule2: 训练规模 max(last_eval=4000, total=None) < 500000 | fail | 4 |
 | traverse | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | fail | 0 |
-| traverse_curve | seed00 | insufficient | rule1: eval 点数 8 < 10 | fail | 8 |
 | traverse_curve | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | traverse_curve | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | traverse_flat_slope | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
@@ -40,13 +39,13 @@
 
 | 配置 | 训练集 | 测试集 | R2 | MAE | 样本(n_train/n_test) |
 |---|---|---|---|---|---|
-| A | screened | **full**（LOO 无泄漏） | -1.9191 | 176640.7 | 6/18 |
-| B | full | **full** | -0.786 | 103411.1 | 18/18 |
+| A | screened | **full**（LOO 无泄漏） | -1.3689 | 175371.3 | 8/19 |
+| B | full | **full** | -0.107 | 94583.7 | 19/19 |
 
 ### verdict 分类
 
-- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.9375（训练 pass/fail = 2/13，测试 n=16）
-- B（full 训练，full 测试 LOO）：accuracy 0.833（pass/fail = 2/16）
+- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.9375（训练 pass/fail = 2/14，测试 n=16）
+- B（full 训练，full 测试 LOO）：accuracy 0.889（pass/fail = 2/16）
 
 ## ⚠️ SURVIVORSHIP BIAS WARNING
 

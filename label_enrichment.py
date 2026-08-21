@@ -176,11 +176,23 @@ def run_pairs(tables: dict[str, pd.DataFrame]) -> list[tuple[str, str]]:
     return sorted(seen)
 
 
-def build_enriched(tables: dict[str, pd.DataFrame], cfg: dict[str, Any]) -> pd.DataFrame:
-    """全部 run 的富化标签表。"""
+def build_enriched(
+    tables: dict[str, pd.DataFrame],
+    cfg: dict[str, Any],
+    factors_cache: dict[tuple[str, str], dict[str, Any]] | None = None,
+) -> pd.DataFrame:
+    """全部 run 的富化标签表。
+
+    factors_cache: 可选的 {(task, seed): run_factors 结果} 缓存，
+    命中时直接复用（供 run_pipeline 一次算因子）。
+    """
     rows = []
     for task, seed in run_pairs(tables):
-        f = run_factors(task, seed, tables, cfg)
+        f = None
+        if factors_cache is not None:
+            f = factors_cache.get((task, seed))
+        if f is None:
+            f = run_factors(task, seed, tables, cfg)
         runs_row = _row(tables.get("runs"), task, seed)
         evals = _filter(tables.get("eval_points"), task, seed)
         tbs = _filter(tables.get("tb_points"), task, seed)
@@ -193,19 +205,23 @@ def build_enriched(tables: dict[str, pd.DataFrame], cfg: dict[str, Any]) -> pd.D
     return df
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="go2w-quant 标签富化（B 方案）")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
-    parser.add_argument("--today", default=None, help="输出日期 YYYY-MM-DD（默认今天）")
-    parser.add_argument("--out", default=None, help="覆盖输出目录（默认 config.modeling_dir）")
-    args = parser.parse_args()
+def run(
+    cfg: dict[str, Any],
+    tables: dict[str, pd.DataFrame] | None = None,
+    factors_cache: dict[tuple[str, str], dict[str, Any]] | None = None,
+    today: str | None = None,
+    out: str | None = None,
+) -> pd.DataFrame:
+    """标签富化全流程：读表（缺省）-> 富化 -> 写 CSV -> 打印摘要，返回富化表。
 
-    cfg = load_config(args.config)
-    tables = load_tables(cfg)
-    today = args.today or _Date.today().isoformat()
-    df = build_enriched(tables, cfg)
+    供 CLI 与 run_pipeline 复用；tables/factors_cache 传入时跳过重复计算。
+    """
+    if tables is None:
+        tables = load_tables(cfg)
+    today = today or _Date.today().isoformat()
+    df = build_enriched(tables, cfg, factors_cache=factors_cache)
 
-    out_dir = resolve_out_dir(cfg, args.out)
+    out_dir = resolve_out_dir(cfg, out)
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"enriched_labels_{today}.csv"
     df.to_csv(path, index=False, encoding="utf-8-sig")
@@ -216,6 +232,18 @@ def main() -> None:
     print(f"  塌缩 {n_collapsed} / 早停合理 {n_stop} / 质量分布: "
           + ", ".join(f"{k} {v}" for k, v in df["data_quality"].value_counts().items()))
     print(f"  输出: {path}")
+    return df
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="go2w-quant 标签富化（B 方案）")
+    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--today", default=None, help="输出日期 YYYY-MM-DD（默认今天）")
+    parser.add_argument("--out", default=None, help="覆盖输出目录（默认 config.modeling_dir）")
+    args = parser.parse_args()
+
+    cfg = load_config(args.config)
+    run(cfg, today=args.today, out=args.out)
 
 
 if __name__ == "__main__":

@@ -144,10 +144,21 @@ def classify(passed: dict[str, bool]) -> str:
 # --------------------------------------------------------------------------
 
 def screen_run(
-    tables: dict[str, pd.DataFrame], task: str, seed: str, cfg: dict[str, Any]
+    tables: dict[str, pd.DataFrame],
+    task: str,
+    seed: str,
+    cfg: dict[str, Any],
+    factors_cache: dict[tuple[str, str], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """组合：factors 清洗值 + 规则评估 + 分类。返回单 run 筛选结果。"""
-    f = run_factors(task, seed, tables, cfg)
+    """组合：factors 清洗值 + 规则评估 + 分类。返回单 run 筛选结果。
+
+    factors_cache 命中时复用 run_factors 结果（供 run_pipeline 一次算因子）。
+    """
+    f = None
+    if factors_cache is not None:
+        f = factors_cache.get((task, seed))
+    if f is None:
+        f = run_factors(task, seed, tables, cfg)
     evals = _filter(tables.get("eval_points"), task, seed)
     tbs = _filter(tables.get("tb_points"), task, seed)
     runs_row = _row(tables.get("runs"), task, seed)
@@ -349,9 +360,14 @@ def run_pairs(tables: dict[str, pd.DataFrame]) -> list[tuple[str, str]]:
     return sorted(seen)
 
 
-def screen_all(tables: dict[str, pd.DataFrame], cfg: dict[str, Any]) -> pd.DataFrame:
+def screen_all(
+    tables: dict[str, pd.DataFrame],
+    cfg: dict[str, Any],
+    factors_cache: dict[tuple[str, str], dict[str, Any]] | None = None,
+) -> pd.DataFrame:
     """筛选全部 run，返回逐 run 结果表。"""
-    rows = [screen_run(tables, t, s, cfg) for t, s in run_pairs(tables)]
+    rows = [screen_run(tables, t, s, cfg, factors_cache=factors_cache)
+            for t, s in run_pairs(tables)]
     df = pd.DataFrame(rows)
     if len(df):
         df = df.sort_values(["task", "seed"]).reset_index(drop=True)
@@ -457,21 +473,32 @@ def render_summary(
 
 
 def screen_outputs(
-    cfg: dict[str, Any], today: str, out_dir: pathlib.Path
+    cfg: dict[str, Any],
+    today: str,
+    out_dir: pathlib.Path,
+    tables: dict[str, pd.DataFrame] | None = None,
+    full_df: pd.DataFrame | None = None,
+    enriched_df: pd.DataFrame | None = None,
+    factors_cache: dict[tuple[str, str], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """完整筛选流程：读表 -> 筛选 -> 归档 -> 对比 -> 写三个输出文件。
 
-    供 CLI 与 modeling.py --screened 复用。
+    供 CLI 与 modeling.py --screened / run_pipeline 复用；
+    tables/full_df/enriched_df/factors_cache 传入时内存传递，缺省回退磁盘读取。
     """
-    tables = load_tables(cfg)
+    if tables is None:
+        tables = load_tables(cfg)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    screen_df = screen_all(tables, cfg)
+    screen_df = screen_all(tables, cfg, factors_cache=factors_cache)
     good_df = screen_df[screen_df["data_quality"] == "good"]
 
     # 读全量 dataset（modeling 产物）与富化标签（label_enrichment 产物）
-    full_df = load_latest_dataset(out_dir, "dataset")
-    enriched = load_latest_dataset(out_dir, "enriched_labels")
+    if full_df is None:
+        full_df = load_latest_dataset(out_dir, "dataset")
+    enriched = enriched_df
+    if enriched is None:
+        enriched = load_latest_dataset(out_dir, "enriched_labels")
     if full_df is None:
         raise SystemExit(f"未找到 dataset_*.csv（请先运行 modeling.py）：{out_dir}")
     if enriched is None:
@@ -534,7 +561,33 @@ def screen_outputs(
         "screened_path": screened_path,
         "archive_path": archive_path,
         "summary_path": summary_path,
+        "screened": screened,
+        "archive": archive,
+        "summary_md": summary_path.read_text(encoding="utf-8"),
     }
+
+
+def run(
+    cfg: dict[str, Any],
+    tables: dict[str, pd.DataFrame] | None = None,
+    full_df: pd.DataFrame | None = None,
+    enriched_df: pd.DataFrame | None = None,
+    factors_cache: dict[tuple[str, str], dict[str, Any]] | None = None,
+    today: str | None = None,
+    out: str | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, str]:
+    """数据筛选全流程：读表（缺省）-> 筛选 -> 写三个输出文件。
+
+    返回 (screened_df, anomaly_df, summary_md)；供 CLI 与 run_pipeline 复用。
+    """
+    today = today or _Date.today().isoformat()
+    out_dir = resolve_out_dir(cfg, out)
+    res = screen_outputs(
+        cfg, today, out_dir,
+        tables=tables, full_df=full_df, enriched_df=enriched_df,
+        factors_cache=factors_cache,
+    )
+    return res["screened"], res["archive"], res["summary_md"]
 
 
 def main() -> None:

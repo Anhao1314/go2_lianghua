@@ -16,10 +16,12 @@ import json
 import pathlib
 from collections import Counter
 from datetime import date as _Date
+from typing import Any
 
 import pandas as pd
 
 from collector import PROJECT_ROOT, load_config
+from data_utils import load_runs_merged
 from factors import DECISIONS, QuantResult, compute_all
 from schema import validate_frame
 
@@ -42,6 +44,12 @@ def load_tables(cfg: dict) -> dict[str, pd.DataFrame]:
     out_dir = pathlib.Path(cfg["output_dir"])
     tables: dict[str, pd.DataFrame] = {}
     for table in FACTOR_TABLES:
+        if table == "runs":
+            df = load_runs_merged(cfg)
+            if df is not None:
+                validate_frame(df, "runs")
+                tables[table] = df
+            continue
         df = read_table(out_dir, table)
         if df is not None:
             tables[table] = df
@@ -178,25 +186,37 @@ def render_markdown(result: QuantResult) -> str:
 # CLI
 # --------------------------------------------------------------------------
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="go2w-quant 量化风控日报")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
-    parser.add_argument("--today", default=None, help="报告日期 YYYY-MM-DD（默认今天）")
-    parser.add_argument("--out", default=None, help="覆盖报告目录（默认 config.report_dir）")
-    args = parser.parse_args()
+def run(
+    cfg: dict,
+    tables: dict[str, pd.DataFrame] | None = None,
+    factors_cache: dict[tuple[str, str], dict[str, Any]] | None = None,
+    backtest_result: tuple[pd.DataFrame, list] | None = None,
+    today: str | None = None,
+    out: str | None = None,
+) -> tuple[str, dict]:
+    """量化日报全流程：读表（缺省）-> 因子/风控/决策 -> 写 md/json -> 打印摘要。
 
-    cfg = load_config(args.config)
-    tables = load_tables(cfg)
-    today = args.today or _Date.today().isoformat()
-    result = compute_all(cfg, tables, today=today)
+    返回 (md_text, json_obj)；供 CLI 与 run_pipeline 复用。
+    backtest_result: 预留参数（backtest_rules 的 (odds, stop_rows)），
+    当前版本日报不嵌入赔率表（保证输出与串行一致），供后续版本使用。
+    """
+    if tables is None:
+        tables = load_tables(cfg)
+    today = today or _Date.today().isoformat()
+    # 管线传入的 tables 含 labels 键时剔除（compute_all 的 coverage 会输出全部
+    # 表名，多 labels 会改变日报"数据覆盖"行；labels 是建模标签，不是因子输入）
+    tables = {k: v for k, v in tables.items() if k != "labels"}
+    result = compute_all(cfg, tables, today=today, factors_cache=factors_cache)
 
-    report_dir = resolve_report_dir(cfg, args.out)
+    report_dir = resolve_report_dir(cfg, out)
     report_dir.mkdir(parents=True, exist_ok=True)
     md_path = report_dir / f"quant_{today}.md"
     json_path = report_dir / f"quant_{today}.json"
-    md_path.write_text(render_markdown(result), encoding="utf-8")
+    md_text = render_markdown(result)
+    md_path.write_text(md_text, encoding="utf-8")
+    json_obj = result.to_dict()
     json_path.write_text(
-        json.dumps(result.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(json_obj, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
     # 控制台摘要
@@ -213,6 +233,18 @@ def main() -> None:
                 print(f"     - {item.message}")
     print(f"  报告: {md_path}")
     print(f"  JSON: {json_path}")
+    return md_text, json_obj
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="go2w-quant 量化风控日报")
+    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--today", default=None, help="报告日期 YYYY-MM-DD（默认今天）")
+    parser.add_argument("--out", default=None, help="覆盖报告目录（默认 config.report_dir）")
+    args = parser.parse_args()
+
+    cfg = load_config(args.config)
+    run(cfg, today=args.today, out=args.out)
 
 
 if __name__ == "__main__":

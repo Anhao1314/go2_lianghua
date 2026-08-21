@@ -252,7 +252,12 @@ def replay_run(
     cfg: dict[str, Any],
     step_minutes: int = 10,
 ) -> list[TriggerEvent]:
-    """沿时间轴重放单个 run；返回首次 R3、首次 R2/R3、首次 stop 事件（可去重）。"""
+    """沿时间轴重放单个 run；返回首次 R3、首次 R2/R3、首次 stop 事件（可去重）。
+
+    视野记忆化：指纹键 (n_snap, n_eval, n_tb) 沿时间轴单调不减，唯一确定
+    在线视野内容（run_factors 为确定性纯函数，快照行序不影响因子值），
+    重复键跳过视图构建与因子重算；同键结果恒同，first_* 首触发语义不变。
+    """
     snaps = _filter(tables.get("snapshots"), task, seed)
     if snaps.empty:
         # 无快照 run：仅按 eval 轴回放 early_low_reward（单因子），
@@ -263,6 +268,26 @@ def replay_run(
     t0 = float(snaps["time"].iloc[0])
     t1 = float(snaps["time"].iloc[-1])
     step = max(1, step_minutes) * 60.0
+
+    # 预过滤子表一次（保留原行序），循环内用布尔掩码切片构造视野
+    evals_raw = _filter(tables.get("eval_points"), task, seed)
+    tb_raw = _filter(tables.get("tb_points"), task, seed)
+    runs_raw = tables.get("runs")
+    runs_view: pd.DataFrame | None = None
+    if runs_raw is not None and len(runs_raw):
+        runs_view = runs_raw.copy()
+        runs_view["completed"] = False  # 在线模拟：训练进行中，stall/idle 规则才可触发
+    snap_times = snaps["time"].to_numpy()
+    ev_ts = (
+        pd.to_numeric(evals_raw["timesteps"], errors="coerce").to_numpy()
+        if len(evals_raw)
+        else None
+    )
+    tb_st = (
+        pd.to_numeric(tb_raw["step"], errors="coerce").to_numpy()
+        if len(tb_raw)
+        else None
+    )
 
     first_r3: TriggerEvent | None = None
     first_r2: TriggerEvent | None = None
@@ -277,10 +302,40 @@ def replay_run(
     if points[-1] < t1 - 1e-6:
         points.append(t1)
 
+    seen: dict[tuple[int, int, int], float] = {}
     for T in points:
-        view = online_view(tables, task, seed, T)
-        if view.get("snapshots", pd.DataFrame()).empty:
+        mask_s = snap_times <= T
+        n_snap = int(mask_s.sum())
+        if n_snap == 0:
             continue
+        # prog：time<=T 的最新快照 timesteps（progress_at 同语义，dropna 取最后）
+        ts_sel = pd.to_numeric(
+            snaps.loc[mask_s, "timesteps"], errors="coerce"
+        ).dropna()
+        prog = float(ts_sel.iloc[-1]) if len(ts_sel) else None
+        n_eval = (
+            int((ev_ts <= prog).sum())
+            if (prog is not None and ev_ts is not None)
+            else 0
+        )
+        n_tb = (
+            int((tb_st <= prog).sum())
+            if (prog is not None and tb_st is not None)
+            else 0
+        )
+        key = (n_snap, n_eval, n_tb)
+        if key in seen:
+            continue
+        seen[key] = T
+
+        view: dict[str, pd.DataFrame] = {"snapshots": snaps[mask_s]}
+        if prog is not None:
+            if ev_ts is not None:
+                view["eval_points"] = evals_raw[ev_ts <= prog]
+            if tb_st is not None:
+                view["tb_points"] = tb_raw[tb_st <= prog]
+        if runs_view is not None:
+            view["runs"] = runs_view
         f = run_factors(task, seed, view, cfg)
         if not f:
             continue
@@ -302,8 +357,6 @@ def replay_run(
             first_stop = ev
 
     return [e for e in (first_r3, first_r2, first_stop) if e is not None]
-
-
 # --------------------------------------------------------------------------
 # 标签与软标签
 # --------------------------------------------------------------------------
@@ -712,18 +765,22 @@ def render_markdown(
 # CLI
 # --------------------------------------------------------------------------
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="go2w-quant 规则止损回测（B 方案 P0）")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
-    parser.add_argument("--today", default=None, help="报告日期 YYYY-MM-DD（默认今天）")
-    parser.add_argument("--out", default=None, help="覆盖输出目录（默认 config.modeling_dir）")
-    parser.add_argument("--step-minutes", type=int, default=10, help="扫描粒度分钟（默认 10）")
-    args = parser.parse_args()
+def run(
+    cfg: dict[str, Any],
+    tables: dict[str, pd.DataFrame] | None = None,
+    today: str | None = None,
+    out: str | None = None,
+    step_minutes: int = 10,
+) -> tuple[pd.DataFrame, list[TriggerEvent], str]:
+    """规则止损回测全流程：重放 -> 富化 -> 赔率表 -> 写 csv/md -> 打印摘要。
 
-    cfg = load_config(args.config)
-    tables = load_tables(cfg)
-    today = args.today or _Date.today().isoformat()
-    step_minutes = max(1, args.step_minutes)
+    返回 (odds_df, stop_rows, summary_md)；供 CLI 与 run_pipeline 复用。
+    注：重放按"在线视野"逐截面重算因子，不做缓存（口径要求）。
+    """
+    if tables is None:
+        tables = load_tables(cfg)
+    today = today or _Date.today().isoformat()
+    step_minutes = max(1, int(step_minutes))
 
     events: list[TriggerEvent] = []
     for task, seed in run_pairs(tables):
@@ -731,17 +788,17 @@ def main() -> None:
     stop_rows = enrich_stop_events(events, tables, cfg)
     odds = build_odds_table(stop_rows, cfg)
 
-    out_dir = pathlib.Path(args.out) if args.out else pathlib.Path(cfg["modeling_dir"])
+    out_dir = pathlib.Path(out) if out else pathlib.Path(cfg["modeling_dir"])
     if not out_dir.is_absolute():
         out_dir = PROJECT_ROOT / out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     csv_path = out_dir / f"rule_backtest_{today}.csv"
     md_path = out_dir / f"rule_backtest_{today}.md"
     odds.to_csv(csv_path, index=False, encoding="utf-8-sig")
-    md_path.write_text(
-        render_markdown(today, tables, events, stop_rows, odds, step_minutes, cfg),
-        encoding="utf-8",
+    summary_md = render_markdown(
+        today, tables, events, stop_rows, odds, step_minutes, cfg
     )
+    md_path.write_text(summary_md, encoding="utf-8")
 
     c = label_counts(tables)
     print(f"[backtest_rules] 规则止损回测 {today}")
@@ -758,6 +815,19 @@ def main() -> None:
             print(f"  期望净节省最高: {r['level']}/{r['factor']} = {r['expected_net_saving_minutes']} min")
     print(f"  报告: {md_path}")
     print(f"  CSV: {csv_path}")
+    return odds, stop_rows, summary_md
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="go2w-quant 规则止损回测（B 方案 P0）")
+    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--today", default=None, help="报告日期 YYYY-MM-DD（默认今天）")
+    parser.add_argument("--out", default=None, help="覆盖输出目录（默认 config.modeling_dir）")
+    parser.add_argument("--step-minutes", type=int, default=10, help="扫描粒度分钟（默认 10）")
+    args = parser.parse_args()
+
+    cfg = load_config(args.config)
+    run(cfg, today=args.today, out=args.out, step_minutes=args.step_minutes)
 
 
 if __name__ == "__main__":

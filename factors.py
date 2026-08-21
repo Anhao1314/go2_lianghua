@@ -818,8 +818,13 @@ def compute_all(
     cfg: dict[str, Any],
     tables: dict[str, pd.DataFrame],
     today: str | None = None,
+    factors_cache: dict[tuple[str, str], dict[str, Any]] | None = None,
 ) -> QuantResult:
-    """全量量化分析：逐 run 因子+风控+决策，外加成本与全局资源。"""
+    """全量量化分析：逐 run 因子+风控+决策，外加成本与全局资源。
+
+    factors_cache: 可选的 {(task, seed): run_factors 结果} 缓存；
+    命中时直接复用，未命中才调用 run_factors（供 run_pipeline 一次算因子）。
+    """
     today = today or _Date.today().isoformat()
     coverage = {name: int(len(df)) for name, df in tables.items()}
 
@@ -836,7 +841,11 @@ def compute_all(
 
     runs: list[RunResult] = []
     for task, seed in pairs:
-        f = run_factors(task, seed, tables, cfg)
+        f = None
+        if factors_cache is not None:
+            f = factors_cache.get((task, seed))
+        if f is None:
+            f = run_factors(task, seed, tables, cfg)
         risks = run_risk_items(f, cfg)
         if not f:
             decision, reasons = "continue", ["暂无可用数据（未开始或已归档）"]
