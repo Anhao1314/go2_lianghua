@@ -9,7 +9,8 @@
     "full_chain_simple",
     "traverse_slope",
     "traverse_flat_slope",
-    "traverse_curve"
+    "traverse_curve",
+    "traverse_curve_curriculum"
   ],
   "archived_tasks": [
     "traverse",

@@ -31,6 +31,18 @@ START_LINE_RE = re.compile(
     r"开始训练 task=(\S+) seed=(\S+) steps=(\d+) envs=(\d+)"
 )
 
+# traverse_curve 课程学习：seed00 下 stage1~4 展平为 s1~s4 四个 run，
+# timesteps 按阶段累加偏移，保证跨阶段曲线连续（每阶段 1M 步上限）。
+CURRICULUM_TASK = "traverse_curve_curriculum"
+CURRICULUM_STAGE_NAMES = (
+    "stage1_straight",
+    "stage2_big_curve",
+    "stage3_mid_curve",
+    "stage4_target",
+)
+CURRICULUM_SEEDS = ("s1", "s2", "s3", "s4")
+CURRICULUM_SEED_OFFSETS = {"s1": 0, "s2": 1_000_000, "s3": 2_000_000, "s4": 3_000_000}
+
 
 def expand_path(raw: str) -> Path:
     """展开 ~ 与环境变量后返回绝对路径。"""
@@ -85,6 +97,15 @@ def iter_run_dirs(source_repo: Path, tasks: list[str]) -> list[tuple[str, str, P
         task_dir = source_repo / "rl" / "runs" / task
         if not task_dir.is_dir():
             continue
+        if task == CURRICULUM_TASK:
+            root = task_dir / "seed00"
+            if not root.is_dir():
+                continue
+            for seed, name in zip(CURRICULUM_SEEDS, CURRICULUM_STAGE_NAMES):
+                stage_dir = root / name
+                if stage_dir.is_dir():
+                    runs.append((task, seed, stage_dir))
+            continue
         for seed_dir in sorted(task_dir.glob("seed*")):
             if not seed_dir.is_dir():
                 continue
@@ -93,7 +114,9 @@ def iter_run_dirs(source_repo: Path, tasks: list[str]) -> list[tuple[str, str, P
     return runs
 
 
-def parse_eval_points(task: str, seed: str, run_dir: Path) -> list[dict]:
+def parse_eval_points(
+    task: str, seed: str, run_dir: Path, offset: int = 0
+) -> list[dict]:
     path = run_dir / "eval_log.csv"
     if not path.exists():
         return []
@@ -112,7 +135,7 @@ def parse_eval_points(task: str, seed: str, run_dir: Path) -> list[dict]:
                 {
                     "task": task,
                     "seed": seed,
-                    "timesteps": int(float(parts[0])),
+                    "timesteps": int(float(parts[0])) + offset,
                     "mean_reward": float(parts[1]),
                     "std_reward": float(parts[2]),
                     "mean_ep_len": float(parts[3]),
@@ -133,7 +156,9 @@ def _newest_tb_dir(run_dir: Path) -> Path | None:
     return max(candidates, key=lambda p: p.stat().st_mtime)
 
 
-def parse_tb_points(task: str, seed: str, run_dir: Path) -> list[dict]:
+def parse_tb_points(
+    task: str, seed: str, run_dir: Path, offset: int = 0
+) -> list[dict]:
     """读取最新 TensorBoard run 目录的标量（事件约每 rollout 16k 步刷新）。"""
     tb_dir = _newest_tb_dir(run_dir)
     if tb_dir is None:
@@ -186,7 +211,7 @@ def parse_tb_points(task: str, seed: str, run_dir: Path) -> list[dict]:
     steps = sorted({s for series_ in series.values() for s, _v in series_})
     rows = []
     for step in steps:
-        row = {"task": task, "seed": seed, "step": int(step)}
+        row = {"task": task, "seed": seed, "step": int(step) + offset}
         for name, values in series.items():
             value = next((v for s, v in values if s == step), None)
             if name == "approx_kl" and value is not None and not (0.0 < value <= 1.0):
@@ -272,6 +297,56 @@ def parse_train_config(guard_dir: Path, task: str, seed: str) -> dict:
     return cfg
 
 
+def parse_run_config_json(run_dir: Path) -> dict:
+    """优先读取训练目录内的 train_config.json（课程阶段等自定义目录可靠）。"""
+    path = run_dir / "train_config.json"
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    out: dict[str, Any] = {}
+    for key in ("total_steps", "envs", "curriculum_steps", "terrain", "init_from"):
+        value = data.get(key)
+        if value is not None:
+            out[key] = value
+    return out
+
+
+def _curriculum_labels(reports_root: Path) -> dict:
+    """课程学习统一验收标签：读取 seed00 汇总报告并应用到 s1~s4。"""
+    labels: dict[str, Any] = {
+        "verdict": None,
+        "success_rate": None,
+        "has_metrics": False,
+    }
+    summary = _read_summary(reports_root, CURRICULUM_TASK, "seed00")
+    if summary:
+        labels["verdict"] = summary.get("verdict")
+        labels["success_rate"] = summary.get("success_rate")
+    metrics_path = reports_root / CURRICULUM_TASK / "seed00" / "metrics.csv"
+    if not metrics_path.exists():
+        return labels
+    labels["has_metrics"] = True
+    try:
+        df = pd.read_csv(metrics_path)
+    except Exception:
+        return labels
+    if len(df) and "success" in df.columns:
+        ok = all(bool(v) for v in df["success"].tolist())
+        if not labels["verdict"]:
+            labels["verdict"] = "pass" if ok else "fail"
+    if labels["success_rate"] is None and "success_rate" in df.columns:
+        vals = [
+            float(v) for v in df["success_rate"].tolist()
+            if v is not None and v == v
+        ]
+        if vals:
+            labels["success_rate"] = sum(vals) / len(vals)
+    return labels
+
+
 def _report_run_keys(reports_root: Path) -> set[tuple[str, str]]:
     """扫描 reports/ 下全部 (task, seed) 验收键（以 metrics.csv 为准）。"""
     keys: set[tuple[str, str]] = set()
@@ -322,7 +397,8 @@ def _run_keys(
         keys[(task, seed)] = run_dir
     allowed = set(tasks)
     for task, seed in _report_run_keys(reports_root):
-        if task in allowed:
+        # 课程学习用 s1~s4 展开行承载验收标签，seed00 汇总行不单独入 runs
+        if task in allowed and task != CURRICULUM_TASK:
             keys.setdefault((task, seed), None)  # 只有验收报告、无运行目录的 run 也入表
     return keys
 
@@ -336,8 +412,13 @@ def build_runs(source_repo: Path, tasks: list[str]) -> list[dict]:
     rows: list[dict] = []
     for (task, seed), run_dir in sorted(keys.items()):
         rec = runs_state.get(f"{task}/{seed}", {})
-        cfg = parse_train_config(guard_dir, task, seed)
-        labels = _acceptance_labels(reports_root, task, seed)
+        cfg = parse_run_config_json(run_dir) if run_dir else {}
+        cfg.update(parse_train_config(guard_dir, task, seed))
+        labels = (
+            _curriculum_labels(reports_root)
+            if task == CURRICULUM_TASK
+            else _acceptance_labels(reports_root, task, seed)
+        )
         completed = bool((run_dir / ".completed").exists()) if run_dir else False
         if labels["has_metrics"]:
             completed = True  # 有验收报告即视为训练完成
@@ -430,7 +511,11 @@ def build_labels(
                 }
             )
             continue
-        labels = _acceptance_labels(reports_root, task, seed)
+        labels = (
+            _curriculum_labels(reports_root)
+            if task == CURRICULUM_TASK
+            else _acceptance_labels(reports_root, task, seed)
+        )
         verdict = labels["verdict"]
         success_rate = labels["success_rate"]
         duration = duration_map.get((task, seed))
@@ -610,8 +695,13 @@ def collect(cfg: dict) -> dict[str, int]:
     eval_rows: list[dict] = []
     tb_rows: list[dict] = []
     for task, seed, run_dir in iter_run_dirs(source, tasks):
-        eval_rows.extend(parse_eval_points(task, seed, run_dir))
-        tb_rows.extend(parse_tb_points(task, seed, run_dir))
+        offset = (
+            CURRICULUM_SEED_OFFSETS.get(seed, 0)
+            if task == CURRICULUM_TASK
+            else 0
+        )
+        eval_rows.extend(parse_eval_points(task, seed, run_dir, offset=offset))
+        tb_rows.extend(parse_tb_points(task, seed, run_dir, offset=offset))
 
     snap_path = source / "rl" / "runs" / "_guard" / "snapshots.jsonl"
     snap_rows = parse_snapshots(snap_path)
@@ -639,13 +729,14 @@ def collect(cfg: dict) -> dict[str, int]:
         "costs": _frame(costs_rows, "costs"),
         "labels": _frame(labels_rows, "labels"),
     }
+    counts: dict[str, int] = {}
     for table, df in tables.items():
         keys = KEY_COLUMNS[table]
         df = df.drop_duplicates(subset=keys, keep="last").sort_values(keys)
         validate_frame(df, table)
         write_frame(df, table, out_dir)
+        counts[table] = len(df)
 
-    counts = {table: len(df) for table, df in tables.items()}
     return counts
 
 

@@ -152,6 +152,57 @@ def make_config(root: Path, src: Path) -> dict:
     }
 
 
+def make_curriculum_source(root: Path) -> Path:
+    """构造课程学习数据源：seed00/stage1~4 + 汇总验收报告。"""
+    src = root / "curriculum_src"
+    base = src / "rl" / "runs" / "traverse_curve_curriculum" / "seed00"
+    stages = [
+        ("stage1_straight", "s1"),
+        ("stage2_big_curve", "s2"),
+        ("stage3_mid_curve", "s3"),
+        ("stage4_target", "s4"),
+    ]
+    for idx, (name, _seed) in enumerate(stages, start=1):
+        d = base / name
+        d.mkdir(parents=True)
+        (d / "eval_log.csv").write_text(
+            "timesteps,mean_reward,std_reward,mean_ep_len\n"
+            f"{idx * 100000},{-idx}.0,0.1,{50 + idx}.0\n",
+            encoding="utf-8",
+        )
+        (d / "train_config.json").write_text(
+            json.dumps(
+                {
+                    "task": "traverse_curve",
+                    "seed": 0,
+                    "total_steps": 1000000,
+                    "envs": 4,
+                    "corridor_width": round(0.4 + (3 - idx) * 0.2, 1),
+                    "curve_amplitude": round(0.35 - (3 - idx) * 0.1, 2),
+                    "reward_version": "simple",
+                    "terrain": "hfield",
+                    "init_from": f"stage{idx - 1}" if idx > 1 else None,
+                }
+            ),
+            encoding="utf-8",
+        )
+        (d / ".completed").write_text("", encoding="utf-8")
+    reports = src / "reports" / "traverse_curve_curriculum" / "seed00"
+    reports.mkdir(parents=True)
+    (reports / "summary.json").write_text(
+        json.dumps(
+            {
+                "task": "traverse_curve_curriculum",
+                "seed": 0,
+                "verdict": "fail",
+                "success_rate": 0.0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return src
+
+
 class ParseTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -270,6 +321,66 @@ class CollectTest(unittest.TestCase):
             self.assertAlmostEqual(bl["duration_seconds"], 60.0)
             self.assertEqual(bl["label_source"], "auto")
             self.assertTrue(str(bl["label_updated_at"]))
+
+
+class CurriculumCollectTest(unittest.TestCase):
+    def test_iter_run_dirs_and_offset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = make_curriculum_source(root)
+            runs = collector.iter_run_dirs(src, ["traverse_curve_curriculum"])
+            self.assertEqual(
+                [(t, s) for t, s, _p in runs],
+                [
+                    ("traverse_curve_curriculum", "s1"),
+                    ("traverse_curve_curriculum", "s2"),
+                    ("traverse_curve_curriculum", "s3"),
+                    ("traverse_curve_curriculum", "s4"),
+                ],
+            )
+            rows = collector.parse_eval_points(
+                runs[3][0], runs[3][1], runs[3][2], offset=3_000_000
+            )
+            self.assertEqual(rows[0]["timesteps"], 3_400_000)
+
+    def test_build_runs_verdict_from_curriculum_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = make_curriculum_source(root)
+            rows = collector.build_runs(src, ["traverse_curve_curriculum"])
+            self.assertEqual(len(rows), 4)
+            for row in rows:
+                self.assertEqual(row["verdict"], "fail")
+                self.assertAlmostEqual(row["success_rate"], 0.0)
+                self.assertTrue(row["completed"])
+                self.assertEqual(row["total_steps"], 1000000)
+                self.assertEqual(row["envs"], 4)
+                self.assertEqual(row["terrain"], "hfield")
+
+    def test_collect_curriculum_idempotent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = make_curriculum_source(root)
+            cfg = {
+                "source_repo": str(src),
+                "lianghua_db": None,
+                "output_dir": str(root / "out"),
+                "raw_dir": str(root / "raw"),
+                "tasks": ["traverse_curve_curriculum"],
+                "peak_hours": [10, 22],
+                "pricing": {
+                    "peak": {"cached_input": 0.1, "uncached_input": 3.0, "output": 9.0},
+                    "offpeak": {"cached_input": 0.05, "uncached_input": 1.5, "output": 4.5},
+                },
+            }
+            first = collector.collect(cfg)
+            second = collector.collect(cfg)
+            self.assertEqual(first, second)
+            self.assertEqual(first["runs"], 4)
+            self.assertEqual(first["eval_points"], 4)
+            eval_df = pd.read_csv(Path(cfg["output_dir"]) / "eval_points.csv")
+            s4 = eval_df[eval_df["seed"] == "s4"]
+            self.assertEqual(s4.iloc[0]["timesteps"], 3_400_000)
 
 
 def write_metrics(root: Path, task: str, seed: str, rows: list[tuple]) -> Path:
