@@ -97,11 +97,11 @@ class LoadAllTablesTest(unittest.TestCase):
             set(tables),
             {"runs", "eval_points", "tb_points", "snapshots", "reports", "costs", "labels"},
         )
-        self.assertEqual(len(tables["runs"]), 39)
-        self.assertEqual(len(tables["eval_points"]), 1699)
-        self.assertEqual(len(tables["tb_points"]), 11921)
-        self.assertEqual(len(tables["snapshots"]), 28826)
-        self.assertEqual(len(tables["reports"]), 22)
+        self.assertEqual(len(tables["runs"]), 40)
+        self.assertEqual(len(tables["eval_points"]), 1710)
+        self.assertEqual(len(tables["tb_points"]), 11988)
+        self.assertEqual(len(tables["snapshots"]), 29870)
+        self.assertEqual(len(tables["reports"]), 23)
         self.assertEqual(len(tables["costs"]), 4)
         self.assertEqual(len(tables["labels"]), 40)
 
