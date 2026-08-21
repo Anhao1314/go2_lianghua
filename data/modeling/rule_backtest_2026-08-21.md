@@ -12,40 +12,40 @@
 
 | 级别 | 触发因子 | 触发数 | pass | fail | unknown | 命中率 | 误杀数 | 误杀率 | 代理误杀率 | 平均节省min(fail) | 平均节省min(全部) | 期望净节省min | 单次节省估算(元) | t_end 方法分布 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| R2 | approx_kl | 4 | 0 | 4 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4885.8 | 4885.8 | 4885.8 | 203.57 | actual:4 |
-| R2 | cpu | 5 | 0 | 5 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4852.4 | 4852.4 | 4852.4 | 202.18 | actual:5 |
-| R2 | drawdown | 5 | 0 | 5 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4852.4 | 4852.4 | 4852.4 | 202.18 | actual:5 |
-| R2 | early_low_reward | 9 | 0 | 8 | 1 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 1944.6 | 1728.5 | 1944.6 | 72.02 | no_snapshot:6;actual:3 |
-| R2 | neg_ratio | 3 | 0 | 3 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4922.3 | 4922.3 | 4922.3 | 205.1 | actual:3 |
-| R2 | neg_ratio_current | 3 | 0 | 3 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4922.3 | 4922.3 | 4922.3 | 205.1 | actual:3 |
-| R2 | stagnation | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5509.0 | 5509.0 | 5509.0 | 229.54 | actual:1 |
-| R2 | stall | 5 | 0 | 5 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4852.4 | 4852.4 | 4852.4 | 202.18 | actual:5 |
-| R2 | std | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4719.0 | 4719.0 | 4719.0 | 196.62 | actual:1 |
-| R2 | std_reward_collapse | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4719.0 | 4719.0 | 4719.0 | 196.62 | actual:1 |
-| R3 | cpu | 2 | 0 | 1 | 1 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5626.3 | 520656.0 | 5626.3 | 21694.0 | actual:1;step_rate:1 |
-| R3 | drawdown | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5626.3 | 5626.3 | 5626.3 | 234.43 | actual:1 |
-| R3 | kl_divergent | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5626.3 | 5626.3 | 5626.3 | 234.43 | actual:1 |
-| R3 | neg_ratio | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5626.3 | 5626.3 | 5626.3 | 234.43 | actual:1 |
-| R3 | restart | 2 | 0 | 1 | 1 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5626.3 | 520656.0 | 5626.3 | 21694.0 | actual:1;step_rate:1 |
-| R3 | stall | 2 | 0 | 1 | 1 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5626.3 | 520656.0 | 5626.3 | 21694.0 | actual:1;step_rate:1 |
-| R3 | std | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5626.3 | 5626.3 | 5626.3 | 234.43 | actual:1 |
+| R2 | approx_kl | 4 | 0 | 4 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4897.2 | 4897.2 | 4897.2 | 204.05 | actual:4 |
+| R2 | cpu | 5 | 0 | 5 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4864.6 | 4864.6 | 4864.6 | 202.69 | actual:5 |
+| R2 | drawdown | 5 | 0 | 5 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4864.6 | 4864.6 | 4864.6 | 202.69 | actual:5 |
+| R2 | early_low_reward | 9 | 0 | 8 | 1 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 1950.3 | 1733.6 | 1950.3 | 72.23 | no_snapshot:6;actual:3 |
+| R2 | neg_ratio | 3 | 0 | 3 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4937.6 | 4937.6 | 4937.6 | 205.73 | actual:3 |
+| R2 | neg_ratio_current | 3 | 0 | 3 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4937.6 | 4937.6 | 4937.6 | 205.73 | actual:3 |
+| R2 | stagnation | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5524.3 | 5524.3 | 5524.3 | 230.18 | actual:1 |
+| R2 | stall | 5 | 0 | 5 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4864.6 | 4864.6 | 4864.6 | 202.69 | actual:5 |
+| R2 | std | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4734.3 | 4734.3 | 4734.3 | 197.26 | actual:1 |
+| R2 | std_reward_collapse | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 4734.3 | 4734.3 | 4734.3 | 197.26 | actual:1 |
+| R3 | cpu | 2 | 0 | 1 | 1 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5641.6 | 520663.6 | 5641.6 | 21694.32 | actual:1;step_rate:1 |
+| R3 | drawdown | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5641.6 | 5641.6 | 5641.6 | 235.07 | actual:1 |
+| R3 | kl_divergent | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5641.6 | 5641.6 | 5641.6 | 235.07 | actual:1 |
+| R3 | neg_ratio | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5641.6 | 5641.6 | 5641.6 | 235.07 | actual:1 |
+| R3 | restart | 2 | 0 | 1 | 1 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5641.6 | 520663.6 | 5641.6 | 21694.32 | actual:1;step_rate:1 |
+| R3 | stall | 2 | 0 | 1 | 1 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5641.6 | 520663.6 | 5641.6 | 21694.32 | actual:1;step_rate:1 |
+| R3 | std | 1 | 0 | 1 | 0 | 1.0 | 0 | N/A (no pass samples) | 0.0 | 5641.6 | 5641.6 | 5641.6 | 235.07 | actual:1 |
 
 ## 三、逐 run 首次止损明细
 
 | task | seed | 级别 | 触发因子 | 标签 | fail_score | 代理pass | 节省min | 节省估算(元) | t_end 方法 | 触发证据 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| balance | seed00 | R3 | cpu;drawdown;kl_divergent;neg_ratio;restart;stall;std | fail | 0.5703 | False | 5626.3 | 234.43 | actual | 评估奖励较峰值回撤 78.0%（阈值 30%） | 近期评估奖励负值占比 80%（>50%），疑似策略崩溃 | 策略输出标准差 0.0102（<0.05），疑似塌缩 | approx_kl 持续 7 个 eval 点超界（>=5），疑似数据损坏/发散 | CPU 使用率峰值 100%（>95%） | timesteps |
-| full_chain | seed00 | R2 | cpu;drawdown;neg_ratio;neg_ratio_current;stall;std;std_reward_collapse | fail | 0.3735 | False | 4719.0 | 196.63 | actual | 评估奖励较峰值回撤 100.0%（阈值 30%） | 近期评估奖励负值占比 100%（>50%），疑似策略崩溃 | 当前训练尝试负奖励占比 99%（>50%），疑似崩溃 | 策略输出标准差 0.0（<0.01），疑似确定性退化 | 策略输出标准差 0.0333（<0.05），疑似塌缩 | CPU 使用率峰值 100%（ |
+| balance | seed00 | R3 | cpu;drawdown;kl_divergent;neg_ratio;restart;stall;std | fail | 0.5703 | False | 5641.6 | 235.06 | actual | 评估奖励较峰值回撤 78.0%（阈值 30%） | 近期评估奖励负值占比 80%（>50%），疑似策略崩溃 | 策略输出标准差 0.0102（<0.05），疑似塌缩 | approx_kl 持续 7 个 eval 点超界（>=5），疑似数据损坏/发散 | CPU 使用率峰值 100%（>95%） | timesteps |
+| full_chain | seed00 | R2 | cpu;drawdown;neg_ratio;neg_ratio_current;stall;std;std_reward_collapse | fail | 0.3735 | False | 4734.3 | 197.26 | actual | 评估奖励较峰值回撤 100.0%（阈值 30%） | 近期评估奖励负值占比 100%（>50%），疑似策略崩溃 | 当前训练尝试负奖励占比 99%（>50%），疑似崩溃 | 策略输出标准差 0.0（<0.01），疑似确定性退化 | 策略输出标准差 0.0333（<0.05），疑似塌缩 | CPU 使用率峰值 100%（ |
 | traverse | seed00 | R3 | cpu;restart;stall | unknown | 0.3978 | False | 1035685.6 | 43153.57 | step_rate | CPU 使用率峰值 100%（>95%） | timesteps 连续 359 分钟无增长（>=60） | 检测到 4 次训练重启（>=4），训练反复崩溃 |
 | traverse | seed01 | R2 | approx_kl;cpu;drawdown;stall | fail | 0.7764 | False | 3986.5 | 166.11 | actual | 评估奖励较峰值回撤 63.9%（阈值 30%） | approx_kl=0.1178（>0.1） | CPU 使用率峰值 100%（>95%） | timesteps 连续 134 分钟无增长（>=60） |
-| traverse_curve | seed00 | R2 | approx_kl;cpu;drawdown;early_low_reward;stall | fail | 0.7675 | False | 5508.5 | 229.52 | actual | 评估奖励较峰值回撤 45.2%（阈值 30%） | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） | approx_kl=0.0578（>0.05） | CPU 使用率峰值 100%（>95%） | timesteps 连续 201 分钟无增长（>=60） |
+| traverse_curve | seed00 | R2 | approx_kl;cpu;drawdown;early_low_reward;stall | fail | 0.7675 | False | 5523.7 | 230.15 | actual | 评估奖励较峰值回撤 45.2%（阈值 30%） | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） | approx_kl=0.0578（>0.05） | CPU 使用率峰值 100%（>95%） | timesteps 连续 201 分钟无增长（>=60） |
 | traverse_curve_curriculum | s1 | R2 | early_low_reward | fail | 0.5875 | False | 0.0 | 0.0 | no_snapshot | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） |
 | traverse_curve_dagger_ppo | seed00 | R2 | early_low_reward | fail | 0.3704 | False | 0.0 | 0.0 | no_snapshot | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） |
 | traverse_curve_v1 | seed00 | R2 | early_low_reward | fail | 0.5637 | False | 0.0 | 0.0 | no_snapshot | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） |
 | traverse_curve_v2 | seed00 | R2 | early_low_reward | fail | 0.515 | False | 0.0 | 0.0 | no_snapshot | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） |
 | traverse_curve_v3 | seed00 | R2 | early_low_reward | fail | 0.5887 | False | 0.0 | 0.0 | no_snapshot | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） |
-| traverse_flat_slope | seed00 | R2 | approx_kl;cpu;drawdown;early_low_reward;neg_ratio;neg_ratio_current;stall | fail | 0.7833 | False | 4539.0 | 189.13 | actual | 评估奖励较峰值回撤 93.4%（阈值 30%） | 评估奖励负值占比 45%（>30%） | 当前训练尝试负奖励占比 45%（>30%） | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） | approx_kl=0.1145（>0.1） | CPU 使用率峰值 100%（>95%） | timesteps  |
-| traverse_slope | seed00 | R2 | approx_kl;cpu;drawdown;early_low_reward;neg_ratio;neg_ratio_current;stagnation;stall | fail | 0.7333 | False | 5509.0 | 229.54 | actual | 评估奖励较峰值回撤 42.7%（阈值 30%） | 训练进度 81% 但奖励仅为峰值的 57%（<60%），疑似停滞 | 评估奖励负值占比 88%（>30%） | 当前训练尝试负奖励占比 88%（>50%），疑似崩溃 | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） | approx_kl=0.2469（> |
+| traverse_flat_slope | seed00 | R2 | approx_kl;cpu;drawdown;early_low_reward;neg_ratio;neg_ratio_current;stall | fail | 0.7833 | False | 4554.3 | 189.76 | actual | 评估奖励较峰值回撤 93.4%（阈值 30%） | 评估奖励负值占比 45%（>30%） | 当前训练尝试负奖励占比 45%（>30%） | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） | approx_kl=0.1145（>0.1） | CPU 使用率峰值 100%（>95%） | timesteps  |
+| traverse_slope | seed00 | R2 | approx_kl;cpu;drawdown;early_low_reward;neg_ratio;neg_ratio_current;stagnation;stall | fail | 0.7333 | False | 5524.3 | 230.18 | actual | 评估奖励较峰值回撤 42.7%（阈值 30%） | 训练进度 81% 但奖励仅为峰值的 57%（<60%），疑似停滞 | 评估奖励负值占比 88%（>30%） | 当前训练尝试负奖励占比 88%（>50%），疑似崩溃 | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） | approx_kl=0.2469（> |
 | traverse_v1 | seed00 | R2 | early_low_reward | unknown | 0.3888 | False | 0.0 | 0.0 | no_snapshot | 前25%训练步数内评估奖励始终低于阈值（从未学会型失败） |
 
 ## 四、首次 R2/R3 预警统计（不产生止损）
