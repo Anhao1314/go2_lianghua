@@ -2,16 +2,16 @@
 
 ## 一、筛选结果概览
 
-- 总 run 数：35；good 23 / insufficient 12 / anomalous 0
+- 总 run 数：38；good 23 / insufficient 13 / anomalous 2
 
 ## 二、逐规则通过率
 
 | 规则 | 说明 | 通过 | 失败 |
 |---|---|---|---|
-| rule1 | eval 点数 ≥ 阈值 | 23 | 12 |
-| rule2 | 训练规模 ≥ 阈值 | 25 | 10 |
-| rule3 | 无解析异常（清洗后 KL / NaN） | 35 | 0 |
-| rule4 | 曲线可辨识（std > 阈值） | 35 | 0 |
+| rule1 | eval 点数 ≥ 阈值 | 23 | 15 |
+| rule2 | 训练规模 ≥ 阈值 | 27 | 11 |
+| rule3 | 无解析异常（清洗后 KL / NaN） | 38 | 0 |
+| rule4 | 曲线可辨识（std > 阈值） | 36 | 2 |
 
 ## 三、异常/不足 run 归档
 
@@ -25,6 +25,9 @@
 | traverse | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | fail | 0 |
 | traverse_curve | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | traverse_curve | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
+| traverse_curve_dagger | seed00 | anomalous | rule1: eval 点数 6 < 10;rule4: mean_reward 标准差 0.262 <= 1.0（曲线不可辨识） | fail | 6 |
+| traverse_curve_dagger_ppo | seed00 | insufficient | rule1: eval 点数 4 < 10 | fail | 4 |
+| traverse_curve_high_level | seed00 | anomalous | rule1: eval 点数 4 < 10;rule2: 训练规模 max(last_eval=200000, total=None) < 500000;rule4: mean_reward 标准差 0.190 <= 1.0（曲线不可辨识） | fail | 4 |
 | traverse_flat_slope | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | traverse_flat_slope | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | traverse_slope | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
@@ -39,13 +42,13 @@
 
 | 配置 | 训练集 | 测试集 | R2 | MAE | 样本(n_train/n_test) |
 |---|---|---|---|---|---|
-| A | screened | **full**（LOO 无泄漏） | -1.2801 | 198814.8 | 8/19 |
-| B | full | **full** | -0.432 | 124215.8 | 19/19 |
+| A | screened | **full**（LOO 无泄漏） | -1.3962 | 208769.1 | 8/19 |
+| B | full | **full** | -0.56 | 132045.4 | 19/19 |
 
 ### verdict 分类
 
-- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.95（训练 pass/fail = 2/18，测试 n=20）
-- B（full 训练，full 测试 LOO）：accuracy 0.864（pass/fail = 2/20）
+- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.9565（训练 pass/fail = 2/18，测试 n=23）
+- B（full 训练，full 测试 LOO）：accuracy 0.88（pass/fail = 2/23）
 
 ## ⚠️ SURVIVORSHIP BIAS WARNING
 

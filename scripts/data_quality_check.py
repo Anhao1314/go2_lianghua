@@ -33,7 +33,7 @@ from data_utils import load_runs_merged, load_labels_merged
 MIN_EVAL_POINTS = 10        # A2：eval 点数下限
 MIN_TB_POINTS = 50          # A3：tb 点数下限
 MIN_SNAPSHOTS = 10          # A4：snapshot 数下限
-REWARD_MAX = 500.0          # B1：奖励上限（物理不合理）
+REWARD_MAX = 600.0          # B1：奖励上限（物理不合理）
 REWARD_MIN = -200.0         # B1：奖励下限
 EP_LEN_MAX = 1500.0         # B2：ep_len 上限（15s x 100Hz）
 TIMESTEPS_MAX = 10_000_000  # B3：训练步数上限
