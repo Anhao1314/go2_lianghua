@@ -30,3 +30,7 @@ traverse_slope_v1,seed00,fail,0.0,manual_curve,2026-08-19 10:04:10
 traverse_v1,seed00,,,auto,2026-08-19 16:31:13
 traverse_v1,seed01,pass,1.0,manual_curve,2026-08-19 10:04:10
 traverse_v1,seed02,pass,1.0,manual_curve,2026-08-19 10:04:10
+traverse_curve_curriculum,s1,fail,0.0,formal_eval,2026-08-21 10:15:06
+traverse_curve_curriculum,s2,fail,0.0,formal_eval,2026-08-21 10:15:06
+traverse_curve_curriculum,s3,fail,0.0,formal_eval,2026-08-21 10:15:06
+traverse_curve_curriculum,s4,fail,0.0,formal_eval,2026-08-21 10:15:06
