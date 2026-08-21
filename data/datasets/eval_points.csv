@@ -769,6 +769,12 @@ traverse_curve_curriculum,s4,4300000,-17.9641,1.1002,300.0
 traverse_curve_curriculum,s4,4350000,-23.1975,8.8669,282.2
 traverse_curve_curriculum,s4,4400000,-17.3674,0.6894,300.0
 traverse_curve_curriculum,s4,4450000,-16.6751,0.3587,300.0
+traverse_curve_dagger,seed00,0,0.118,0.0,449.0
+traverse_curve_dagger,seed00,100000,0.9153,0.0,1500.0
+traverse_curve_dagger,seed00,200000,0.337,0.0,500.0
+traverse_curve_dagger,seed00,300000,0.5314,0.0,603.0
+traverse_curve_dagger,seed00,400000,0.3516,-0.0,482.0
+traverse_curve_dagger,seed00,500000,0.7126,0.0,718.0
 traverse_curve_v1,seed00,50000,12.6381,0.1079,300.4
 traverse_curve_v1,seed00,100000,-36.9381,0.0002,36.0
 traverse_curve_v1,seed00,150000,-26.4669,0.0387,49.0

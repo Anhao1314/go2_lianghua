@@ -13,6 +13,7 @@ traverse,seed02,RL PPO (narrow),fail,False,0.0,0.0277541637771918,,0.0,False,,0.
 traverse,seed02,RL PPO (slope),fail,False,0.4,0.4083106433425499,,0.0,False,,2.419105074231606,4.630999999999712,0.6,30.14936530251294,0.7670582778109669,False
 traverse_curve,seed00,RL PPO (curve),fail,False,0.0,0.4072922164292656,,0.0,False,,0.0,,1.0,-14.037431406468462,0.9150300741865202,False
 traverse_curve_curriculum,seed00,RL PPO (curve),fail,False,0.0,0.0437545030025618,,0.0,False,,0.0,,1.0,-38.96232186630632,0.947351966067724,False
+traverse_curve_dagger,seed00,DAgger BC,fail,False,0.0,0.0,,0.0,False,,0.713,,0.0,0.0,0.0,False
 traverse_curve_v2,seed00,RL PPO (curve),pass,True,1.0,0.039833257254581,,0.0,False,,1.3651505244816178,5.741999999999727,0.0,132.71587543542506,0.9605863430775278,False
 traverse_curve_v3,seed00,RL PPO (curve),fail,False,0.0,0.4023616704155735,,0.0,False,,0.0897059694058407,,1.0,-22.07782584762497,0.9315203549009916,False
 traverse_flat_slope,seed00,RL PPO (flat_slope),fail,False,0.0,0.564739661771381,,0.0,False,,0.9162155730731388,,1.0,-7.289963482961665,0.95665807318729,False
