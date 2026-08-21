@@ -775,6 +775,10 @@ traverse_curve_dagger,seed00,200000,0.337,0.0,500.0
 traverse_curve_dagger,seed00,300000,0.5314,0.0,603.0
 traverse_curve_dagger,seed00,400000,0.3516,-0.0,482.0
 traverse_curve_dagger,seed00,500000,0.7126,0.0,718.0
+traverse_curve_dagger_ppo,seed00,50000,-27.3753,0.0,34.0
+traverse_curve_dagger_ppo,seed00,100000,-29.6707,0.0,23.0
+traverse_curve_dagger_ppo,seed00,150000,-27.8446,0.0,33.0
+traverse_curve_dagger_ppo,seed00,200000,-25.3553,0.0003,45.0
 traverse_curve_v1,seed00,50000,12.6381,0.1079,300.4
 traverse_curve_v1,seed00,100000,-36.9381,0.0002,36.0
 traverse_curve_v1,seed00,150000,-26.4669,0.0387,49.0
