@@ -783,6 +783,9 @@ traverse_curve_high_level,seed00,50000,-13.5148,0.0,301.0
 traverse_curve_high_level,seed00,100000,-13.5689,0.0,301.0
 traverse_curve_high_level,seed00,150000,-13.9139,0.0,301.0
 traverse_curve_high_level,seed00,200000,-13.9238,0.0,301.0
+traverse_curve_high_level,seed01,50000,284.2384,0.0,651.0
+traverse_curve_high_level,seed01,100000,282.7888,0.0,641.0
+traverse_curve_high_level,seed01,150000,282.7365,0.0,643.0
 traverse_curve_v1,seed00,50000,12.6381,0.1079,300.4
 traverse_curve_v1,seed00,100000,-36.9381,0.0002,36.0
 traverse_curve_v1,seed00,150000,-26.4669,0.0387,49.0
