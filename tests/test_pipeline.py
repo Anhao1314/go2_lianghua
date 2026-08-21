@@ -196,19 +196,19 @@ class LoadAllTablesTest(unittest.TestCase):
 
         )
 
-        self.assertEqual(len(tables["runs"]), 40)
+        self.assertEqual(len(tables["runs"]), 41)
 
-        self.assertEqual(len(tables["eval_points"]), 1710)
+        self.assertEqual(len(tables["eval_points"]), 1717)
 
-        self.assertEqual(len(tables["tb_points"]), 11988)
+        self.assertEqual(len(tables["tb_points"]), 12030)
 
-        self.assertEqual(len(tables["snapshots"]), 30107)
+        self.assertEqual(len(tables["snapshots"]), 30283)
 
-        self.assertEqual(len(tables["reports"]), 23)
+        self.assertEqual(len(tables["reports"]), 24)
 
         self.assertEqual(len(tables["costs"]), 4)
 
-        self.assertEqual(len(tables["labels"]), 40)
+        self.assertEqual(len(tables["labels"]), 41)
 
 
 
@@ -322,7 +322,7 @@ class PipelineEndToEndTest(unittest.TestCase):
 
         self.assertIn(f"完成 {TODAY}", stdout)
 
-        self.assertIn("标签分布: pass=4 / fail=23 / unknown=13", stdout)
+        self.assertIn("标签分布: pass=5 / fail=23 / unknown=13", stdout)
 
 
 
@@ -334,7 +334,7 @@ class PipelineEndToEndTest(unittest.TestCase):
 
         screened = pd.read_csv(out_dir / f"screened_dataset_{TODAY}.csv", encoding="utf-8-sig")
 
-        self.assertEqual(len(dataset), 40)
+        self.assertEqual(len(dataset), 41)
 
         self.assertIn("task", dataset.columns)
 
@@ -368,7 +368,7 @@ class PipelineEndToEndTest(unittest.TestCase):
 
         counts = label_counts(_tables())
 
-        self.assertEqual(counts, {"pass": 4, "fail": 23, "unknown": 13})
+        self.assertEqual(counts, {"pass": 5, "fail": 23, "unknown": 13})
 
 
 
@@ -468,7 +468,7 @@ class IndividualScriptsStillWorkTest(unittest.TestCase):
 
             cfg, tables=tables, factors_cache=cache, today=TODAY, out=str(tmp))
 
-        self.assertEqual(len(enriched), 40)
+        self.assertEqual(len(enriched), 41)
 
 
 
@@ -478,7 +478,7 @@ class IndividualScriptsStillWorkTest(unittest.TestCase):
 
             factors_cache=cache, out=str(tmp))
 
-        self.assertEqual(len(dataset), 40)
+        self.assertEqual(len(dataset), 41)
 
 
 
@@ -531,4 +531,3 @@ class IndividualScriptsStillWorkTest(unittest.TestCase):
 if __name__ == "__main__":
 
     unittest.main()
-
