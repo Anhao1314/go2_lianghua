@@ -97,13 +97,13 @@ class LoadAllTablesTest(unittest.TestCase):
             set(tables),
             {"runs", "eval_points", "tb_points", "snapshots", "reports", "costs", "labels"},
         )
-        self.assertEqual(len(tables["runs"]), 40)
-        self.assertEqual(len(tables["eval_points"]), 1710)
-        self.assertEqual(len(tables["tb_points"]), 11988)
-        self.assertEqual(len(tables["snapshots"]), 29870)
-        self.assertEqual(len(tables["reports"]), 23)
+        self.assertEqual(len(tables["runs"]), 41)
+        self.assertEqual(len(tables["eval_points"]), 1717)
+        self.assertEqual(len(tables["tb_points"]), 12030)
+        self.assertEqual(len(tables["snapshots"]), 30275)
+        self.assertEqual(len(tables["reports"]), 24)
         self.assertEqual(len(tables["costs"]), 4)
-        self.assertEqual(len(tables["labels"]), 40)
+        self.assertEqual(len(tables["labels"]), 41)
 
     def test_runs_manual_labels_merged(self):
         runs = _tables()["runs"]
@@ -160,13 +160,13 @@ class PipelineEndToEndTest(unittest.TestCase):
     def test_stdout_summary(self):
         _, stdout = _e2e_out()
         self.assertIn(f"完成 {TODAY}", stdout)
-        self.assertIn("标签分布: pass=4 / fail=23 / unknown=13", stdout)
+        self.assertIn("标签分布: pass=5 / fail=23 / unknown=13", stdout)
 
     def test_dataset_shape_and_screen_subset(self):
         out_dir, _ = _e2e_out()
         dataset = pd.read_csv(out_dir / f"dataset_{TODAY}.csv", encoding="utf-8-sig")
         screened = pd.read_csv(out_dir / f"screened_dataset_{TODAY}.csv", encoding="utf-8-sig")
-        self.assertEqual(len(dataset), 40)
+        self.assertEqual(len(dataset), 41)
         self.assertIn("task", dataset.columns)
         self.assertIn("seed", dataset.columns)
         self.assertIn("verdict", dataset.columns)
@@ -183,7 +183,7 @@ class PipelineEndToEndTest(unittest.TestCase):
     def test_label_distribution_matches_tables(self):
         from backtest_rules import label_counts
         counts = label_counts(_tables())
-        self.assertEqual(counts, {"pass": 4, "fail": 23, "unknown": 13})
+        self.assertEqual(counts, {"pass": 5, "fail": 23, "unknown": 13})
 
     def test_quant_json_parseable(self):
         out_dir, _ = _e2e_out()
@@ -233,12 +233,12 @@ class IndividualScriptsStillWorkTest(unittest.TestCase):
 
         enriched = label_enrichment.run(
             cfg, tables=tables, factors_cache=cache, today=TODAY, out=str(tmp))
-        self.assertEqual(len(enriched), 40)
+        self.assertEqual(len(enriched), 41)
 
         dataset = modeling.run(
             cfg, today=TODAY, tables=tables, labels=tables.get("labels"),
             factors_cache=cache, out=str(tmp))
-        self.assertEqual(len(dataset), 40)
+        self.assertEqual(len(dataset), 41)
 
         screened, archive, summary = data_screening.run(
             cfg, tables=tables, full_df=dataset, enriched_df=enriched,
