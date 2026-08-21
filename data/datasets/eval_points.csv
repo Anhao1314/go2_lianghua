@@ -812,6 +812,8 @@ traverse_curve_high_level_bplus_no_goal,seed00,250000,-13.3864,0.0,301.0
 traverse_curve_high_level_bplus_no_goal,seed00,300000,278.104,0.0,722.0
 traverse_curve_high_level_bplus_no_goal,seed00,350000,278.0759,0.0,704.0
 traverse_curve_high_level_bplus_no_goal,seed00,400000,279.0649,0.0,693.0
+traverse_curve_high_level_bplus_no_goal,seed00,450000,279.9199,0.0,616.0
+traverse_curve_high_level_bplus_no_goal,seed00,500000,279.9496,0.0,530.0
 traverse_curve_v1,seed00,50000,12.6381,0.1079,300.4
 traverse_curve_v1,seed00,100000,-36.9381,0.0002,36.0
 traverse_curve_v1,seed00,150000,-26.4669,0.0387,49.0
