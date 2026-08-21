@@ -2,16 +2,16 @@
 
 ## 一、筛选结果概览
 
-- 总 run 数：31；good 19 / insufficient 12 / anomalous 0
+- 总 run 数：35；good 23 / insufficient 12 / anomalous 0
 
 ## 二、逐规则通过率
 
 | 规则 | 说明 | 通过 | 失败 |
 |---|---|---|---|
-| rule1 | eval 点数 ≥ 阈值 | 19 | 12 |
-| rule2 | 训练规模 ≥ 阈值 | 21 | 10 |
-| rule3 | 无解析异常（清洗后 KL / NaN） | 31 | 0 |
-| rule4 | 曲线可辨识（std > 阈值） | 31 | 0 |
+| rule1 | eval 点数 ≥ 阈值 | 23 | 12 |
+| rule2 | 训练规模 ≥ 阈值 | 25 | 10 |
+| rule3 | 无解析异常（清洗后 KL / NaN） | 35 | 0 |
+| rule4 | 曲线可辨识（std > 阈值） | 35 | 0 |
 
 ## 三、异常/不足 run 归档
 
@@ -21,7 +21,7 @@
 | balance | seed02 | insufficient | rule1: eval 点数 0 < 10 | nan | 0 |
 | full_chain | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | full_chain | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
-| full_chain_v1 | seed00 | insufficient | rule1: eval 点数 4 < 10;rule2: 训练规模 max(last_eval=4000, total=None) < 500000 | nan | 4 |
+| full_chain_v1 | seed00 | insufficient | rule1: eval 点数 4 < 10;rule2: 训练规模 max(last_eval=4000, total=None) < 500000 | fail | 4 |
 | traverse | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | fail | 0 |
 | traverse_curve | seed01 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
 | traverse_curve | seed02 | insufficient | rule1: eval 点数 0 < 10;rule2: 训练规模 max(last_eval=0, total=None) < 500000 | nan | 0 |
@@ -39,13 +39,13 @@
 
 | 配置 | 训练集 | 测试集 | R2 | MAE | 样本(n_train/n_test) |
 |---|---|---|---|---|---|
-| A | screened | **full**（LOO 无泄漏） | -1.5305 | 203852.8 | 8/19 |
-| B | full | **full** | -0.413 | 106756.9 | 19/19 |
+| A | screened | **full**（LOO 无泄漏） | -1.2866 | 198788.0 | 8/19 |
+| B | full | **full** | -0.437 | 124549.7 | 19/19 |
 
 ### verdict 分类
 
-- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 1.0（训练 pass/fail = 2/6，测试 n=7）
-- B（full 训练，full 测试 LOO）：样本不足未训练（pass/fail = 1/8）
+- A（screened 训练，full 测试 LOO 无泄漏）：accuracy 0.95（训练 pass/fail = 2/18，测试 n=20）
+- B（full 训练，full 测试 LOO）：accuracy 0.864（pass/fail = 2/20）
 
 ## ⚠️ SURVIVORSHIP BIAS WARNING
 
