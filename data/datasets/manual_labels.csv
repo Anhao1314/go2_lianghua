@@ -34,3 +34,5 @@ traverse_curve_curriculum,s1,fail,0.0,formal_eval,2026-08-21 10:15:06
 traverse_curve_curriculum,s2,fail,0.0,formal_eval,2026-08-21 10:15:06
 traverse_curve_curriculum,s3,fail,0.0,formal_eval,2026-08-21 10:15:06
 traverse_curve_curriculum,s4,fail,0.0,formal_eval,2026-08-21 10:15:06
+traverse_curve_dagger,seed00,fail,0.0,auto,2026-08-21 15:15:04
+traverse_curve_dagger_ppo,seed00,fail,0.0,auto,2026-08-21 15:15:04
