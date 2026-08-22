@@ -43,6 +43,11 @@ CURRICULUM_STAGE_NAMES = (
 CURRICULUM_SEEDS = ("s1", "s2", "s3", "s4")
 CURRICULUM_SEED_OFFSETS = {"s1": 0, "s2": 1_000_000, "s3": 2_000_000, "s4": 3_000_000}
 
+MULTI_SEGMENT_TASK = "traverse_curve_multi_segment"
+MULTI_SEGMENT_STAGE_NAMES = ("stage1", "stage2", "stage3")
+MULTI_SEGMENT_SEEDS = ("m1", "m2", "m3")
+MULTI_SEGMENT_OFFSETS = {"m1": 0, "m2": 500_000, "m3": 1_000_000}
+
 
 def expand_path(raw: str) -> Path:
     """展开 ~ 与环境变量后返回绝对路径。"""
@@ -102,6 +107,15 @@ def iter_run_dirs(source_repo: Path, tasks: list[str]) -> list[tuple[str, str, P
             if not root.is_dir():
                 continue
             for seed, name in zip(CURRICULUM_SEEDS, CURRICULUM_STAGE_NAMES):
+                stage_dir = root / name
+                if stage_dir.is_dir():
+                    runs.append((task, seed, stage_dir))
+            continue
+        if task == MULTI_SEGMENT_TASK:
+            root = task_dir / "seed00"
+            if not root.is_dir():
+                continue
+            for seed, name in zip(MULTI_SEGMENT_SEEDS, MULTI_SEGMENT_STAGE_NAMES):
                 stage_dir = root / name
                 if stage_dir.is_dir():
                     runs.append((task, seed, stage_dir))
@@ -347,6 +361,40 @@ def _curriculum_labels(reports_root: Path) -> dict:
     return labels
 
 
+def _multi_segment_labels(reports_root: Path) -> dict:
+    """多段任务统一验收标签：读取 seed00_v2 汇总报告。"""
+    labels: dict[str, Any] = {
+        "verdict": None,
+        "success_rate": None,
+        "has_metrics": False,
+    }
+    seed = "seed00_v2"
+    summary = _read_summary(reports_root, MULTI_SEGMENT_TASK, seed)
+    if summary:
+        labels["verdict"] = summary.get("verdict")
+        labels["success_rate"] = summary.get("success_rate")
+    metrics_path = reports_root / MULTI_SEGMENT_TASK / seed / "metrics.csv"
+    if not metrics_path.exists():
+        return labels
+    labels["has_metrics"] = True
+    try:
+        df = pd.read_csv(metrics_path)
+    except Exception:
+        return labels
+    if len(df) and "success" in df.columns:
+        ok = all(bool(v) for v in df["success"].tolist())
+        if not labels["verdict"]:
+            labels["verdict"] = "pass" if ok else "fail"
+    if labels["success_rate"] is None and "success_rate" in df.columns:
+        vals = [
+            float(v) for v in df["success_rate"].tolist()
+            if v is not None and v == v
+        ]
+        if vals:
+            labels["success_rate"] = sum(vals) / len(vals)
+    return labels
+
+
 def _report_run_keys(reports_root: Path) -> set[tuple[str, str]]:
     """扫描 reports/ 下全部 (task, seed) 验收键（以 metrics.csv 为准）。"""
     keys: set[tuple[str, str]] = set()
@@ -397,8 +445,8 @@ def _run_keys(
         keys[(task, seed)] = run_dir
     allowed = set(tasks)
     for task, seed in _report_run_keys(reports_root):
-        # 课程学习用 s1~s4 展开行承载验收标签，seed00 汇总行不单独入 runs
-        if task in allowed and task != CURRICULUM_TASK:
+        # 课程/多段用 s1~s4/m1~m3 展开行承载验收标签，汇总行不单独入 runs
+        if task in allowed and task not in (CURRICULUM_TASK, MULTI_SEGMENT_TASK):
             keys.setdefault((task, seed), None)  # 只有验收报告、无运行目录的 run 也入表
     return keys
 
@@ -417,6 +465,8 @@ def build_runs(source_repo: Path, tasks: list[str]) -> list[dict]:
         labels = (
             _curriculum_labels(reports_root)
             if task == CURRICULUM_TASK
+            else _multi_segment_labels(reports_root)
+            if task == MULTI_SEGMENT_TASK
             else _acceptance_labels(reports_root, task, seed)
         )
         completed = bool((run_dir / ".completed").exists()) if run_dir else False
@@ -514,6 +564,8 @@ def build_labels(
         labels = (
             _curriculum_labels(reports_root)
             if task == CURRICULUM_TASK
+            else _multi_segment_labels(reports_root)
+            if task == MULTI_SEGMENT_TASK
             else _acceptance_labels(reports_root, task, seed)
         )
         verdict = labels["verdict"]
@@ -698,6 +750,8 @@ def collect(cfg: dict) -> dict[str, int]:
         offset = (
             CURRICULUM_SEED_OFFSETS.get(seed, 0)
             if task == CURRICULUM_TASK
+            else MULTI_SEGMENT_OFFSETS.get(seed, 0)
+            if task == MULTI_SEGMENT_TASK
             else 0
         )
         eval_rows.extend(parse_eval_points(task, seed, run_dir, offset=offset))

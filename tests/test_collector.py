@@ -383,6 +383,46 @@ class CurriculumCollectTest(unittest.TestCase):
             self.assertEqual(s4.iloc[0]["timesteps"], 3_400_000)
 
 
+class MultiSegmentCollectTest(unittest.TestCase):
+    def test_stage_flatten_and_labels(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = root / "mseg_src"
+            base = src / "rl" / "runs" / "traverse_curve_multi_segment" / "seed00"
+            for i, (name, seed) in enumerate(
+                [("stage1", "m1"), ("stage2", "m2"), ("stage3", "m3")], start=1
+            ):
+                d = base / name
+                d.mkdir(parents=True)
+                (d / "eval_log.csv").write_text(
+                    "timesteps,mean_reward,mean_ep_len,mean_x,success_rate,passed_rate\n"
+                    f"{i * 100000},1.0,{i * 100}.0,{i}.0,0.5,0.5\n",
+                    encoding="utf-8",
+                )
+                (d / ".completed").write_text("", encoding="utf-8")
+            reports = src / "reports" / "traverse_curve_multi_segment" / "seed00_v2"
+            reports.mkdir(parents=True)
+            (reports / "summary.json").write_text(
+                json.dumps({"task": "traverse_curve_multi_segment", "seed": 0,
+                            "verdict": "fail", "success_rate": 0.0}),
+                encoding="utf-8",
+            )
+            runs = collector.iter_run_dirs(src, ["traverse_curve_multi_segment"])
+            self.assertEqual(
+                [(t, s) for t, s, _p in runs],
+                [
+                    ("traverse_curve_multi_segment", "m1"),
+                    ("traverse_curve_multi_segment", "m2"),
+                    ("traverse_curve_multi_segment", "m3"),
+                ],
+            )
+            rows = collector.build_runs(src, ["traverse_curve_multi_segment"])
+            self.assertEqual(len(rows), 3)
+            for row in rows:
+                self.assertEqual(row["verdict"], "fail")
+                self.assertAlmostEqual(row["success_rate"], 0.0)
+
+
 def write_metrics(root: Path, task: str, seed: str, rows: list[tuple]) -> Path:
     """写一份验收 metrics.csv（与 make_source 列序一致）。"""
     reports = root / "reports" / task / seed

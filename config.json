@@ -15,7 +15,8 @@
     "traverse_curve_dagger_ppo",
     "traverse_curve_high_level",
     "traverse_curve_high_level_bplus",
-    "traverse_curve_high_level_bplus_no_goal"
+    "traverse_curve_high_level_bplus_no_goal",
+    "traverse_curve_multi_segment"
   ],
   "archived_tasks": [
     "traverse",
