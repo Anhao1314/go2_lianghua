@@ -31,6 +31,45 @@ git push
 - 提交前确认工作区只有本次改动，不含临时文件
 - data/monitor/ 下的日志文件已 .gitignore，不提交
 
+## 数据同步与冲突处理
+
+当 Linux 训练端推送新数据后，Windows 量化端需要同步数据。使用 **go2w-quant-sync skill** 标准化此流程：
+
+- **Skill 位置**：`C:\Users\24821\AppData\Local\Doubao\User Data\Profile 1\.doubao\agent_mode\workspace\.user_skills\go2w-quant-sync\`
+- **先读取** `SKILL.md` 了解完整 10 步流程
+- **自动化脚本**：
+  - `scripts/sync_and_resolve.py --project-dir .`：git pull + 冲突检测 + 人工字段恢复 + 0 mismatch 验证
+  - `scripts/verify_sync.py --project-dir .`：标签分布 + 规则统计 + 误杀检查 + 对比报告
+
+### 人工字段权威层
+
+`manual_labels.csv`（项目根目录）是人工标注的唯一权威来源。以下 4 个字段以它为准，Linux 自动采集器会覆盖它们，同步时必须恢复：
+
+- `verdict`（pass/fail/unknown）
+- `success_rate`（0.0~1.0）
+- `label_source`（formal_eval/manual_cheating_exposed/auto 等）
+- `label_updated_at`（时间戳）
+
+合并策略：取远端（Linux）版本为基 → 用 manual_labels.csv 覆盖上述 4 个人工字段 → 保留 Linux 新自动字段（duration_seconds、total_steps、新 run 等）。
+
+### rebase 冲突方向（重要）
+
+`git rebase` 中 `--theirs` = 远端（Linux），`--ours` = 本地（Windows）。与 `git merge` 相反，不要搞反。
+
+冲突几乎总在 `data/datasets/runs.csv` 和 `data/datasets/labels.csv`。处理方式：
+1. `git checkout --theirs data/datasets/runs.csv data/datasets/labels.csv`（取 Linux 最新自动数据为基）
+2. 用 manual_labels.csv 覆盖 4 个人工字段（sync_and_resolve.py 自动执行）
+3. `git add` + `git rebase --continue`
+4. 验证人工字段 0 mismatch
+
+### 同步后完整流程
+
+```
+sync_and_resolve.py → verify_sync.py → run_pipeline.py --today YYYY-MM-DD → pytest tests/ → git add/commit/push
+```
+
+遇到异常（新字段冲突、P0 修复被覆盖、pass 被误杀）时暂停并说明，不要强行继续。
+
 ## 新增模块 checklist
 
 - [ ] 模块代码（纯函数优先）
