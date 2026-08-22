@@ -196,19 +196,19 @@ class LoadAllTablesTest(unittest.TestCase):
 
         )
 
-        self.assertEqual(len(tables["runs"]), 42)
+        self.assertEqual(len(tables["runs"]), 45)
 
-        self.assertEqual(len(tables["eval_points"]), 1727)
+        self.assertEqual(len(tables["eval_points"]), 1742)
 
-        self.assertEqual(len(tables["tb_points"]), 12091)
+        self.assertEqual(len(tables["tb_points"]), 12181)
 
-        self.assertEqual(len(tables["snapshots"]), 30415)
+        self.assertEqual(len(tables["snapshots"]), 33286)
 
-        self.assertEqual(len(tables["reports"]), 25)
+        self.assertEqual(len(tables["reports"]), 27)
 
-        self.assertEqual(len(tables["costs"]), 4)
+        self.assertEqual(len(tables["costs"]), 5)
 
-        self.assertEqual(len(tables["labels"]), 42)
+        self.assertEqual(len(tables["labels"]), 45)
 
 
 
@@ -322,7 +322,7 @@ class PipelineEndToEndTest(unittest.TestCase):
 
         self.assertIn(f"完成 {TODAY}", stdout)
 
-        self.assertIn("标签分布: pass=6 / fail=23 / unknown=13", stdout)
+        self.assertIn("标签分布: pass=9 / fail=23 / unknown=13", stdout)
 
 
 
@@ -334,7 +334,7 @@ class PipelineEndToEndTest(unittest.TestCase):
 
         screened = pd.read_csv(out_dir / f"screened_dataset_{TODAY}.csv", encoding="utf-8-sig")
 
-        self.assertEqual(len(dataset), 42)
+        self.assertEqual(len(dataset), 45)
 
         self.assertIn("task", dataset.columns)
 
@@ -368,7 +368,7 @@ class PipelineEndToEndTest(unittest.TestCase):
 
         counts = label_counts(_tables())
 
-        self.assertEqual(counts, {"pass": 6, "fail": 23, "unknown": 13})
+        self.assertEqual(counts, {"pass": 9, "fail": 23, "unknown": 13})
 
 
 
@@ -468,7 +468,7 @@ class IndividualScriptsStillWorkTest(unittest.TestCase):
 
             cfg, tables=tables, factors_cache=cache, today=TODAY, out=str(tmp))
 
-        self.assertEqual(len(enriched), 42)
+        self.assertEqual(len(enriched), 45)
 
 
 
@@ -478,7 +478,7 @@ class IndividualScriptsStillWorkTest(unittest.TestCase):
 
             factors_cache=cache, out=str(tmp))
 
-        self.assertEqual(len(dataset), 42)
+        self.assertEqual(len(dataset), 45)
 
 
 

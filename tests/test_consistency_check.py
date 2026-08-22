@@ -231,7 +231,7 @@ class ConsistencyCheckTest(unittest.TestCase):
         cfg = make_cfg()
         snaps = cc._run_frame(pd.read_csv(PROJECT_ROOT / "data/datasets/snapshots.csv"),
                               "balance", "seed00", by="time")
-        self.assertEqual(cc._restart_count(snaps), 3)
+        self.assertEqual(cc._restart_count(snaps), 1)
 
     def test_no_snapshots_raises(self):
         tables = mini_tables()

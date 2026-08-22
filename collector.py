@@ -112,7 +112,9 @@ def iter_run_dirs(source_repo: Path, tasks: list[str]) -> list[tuple[str, str, P
                     runs.append((task, seed, stage_dir))
             continue
         if task == MULTI_SEGMENT_TASK:
-            root = task_dir / "seed00"
+            root = task_dir / "seed00_v2"
+            if not root.is_dir():
+                root = task_dir / "seed00"
             if not root.is_dir():
                 continue
             for seed, name in zip(MULTI_SEGMENT_SEEDS, MULTI_SEGMENT_STAGE_NAMES):
