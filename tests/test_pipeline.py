@@ -202,7 +202,7 @@ class LoadAllTablesTest(unittest.TestCase):
 
         self.assertEqual(len(tables["tb_points"]), 12181)
 
-        self.assertEqual(len(tables["snapshots"]), 33286)
+        self.assertEqual(len(tables["snapshots"]), 33308)
 
         self.assertEqual(len(tables["reports"]), 27)
 
