@@ -1,13 +1,13 @@
 {
   "today": "2026-08-22",
-  "generated_at": "2026-08-22T09:30:06",
+  "generated_at": "2026-08-22T17:10:52",
   "coverage": {
-    "runs": 42,
-    "eval_points": 1727,
-    "tb_points": 12091,
-    "snapshots": 30583,
-    "reports": 25,
-    "costs": 4
+    "runs": 45,
+    "eval_points": 1742,
+    "tb_points": 12181,
+    "snapshots": 33308,
+    "reports": 27,
+    "costs": 5
   },
   "runs": [
     {
@@ -31,22 +31,22 @@
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
         "report_rows": 1,
-        "verdict_fail_ratio": 0.0,
-        "success_rate_mean": 1.0,
+        "verdict_fail_ratio": 1.0,
+        "success_rate_mean": 0.0,
         "max_dev_max": 0.0138,
         "min_clear_min": 0.4339,
         "falls_mean": 0.0,
         "nan_count": 0,
-        "snapshot_count": 4499,
-        "time_span_minutes": 10803.3,
-        "timesteps_growth": 3989504.0,
-        "stall_minutes": 6555.5,
-        "current_stall_minutes": 6555.5,
-        "restart_count": 3,
+        "snapshot_count": 4951,
+        "time_span_minutes": 7455.2,
+        "timesteps_growth": 2621440.0,
+        "stall_minutes": 7005.5,
+        "current_stall_minutes": 7005.5,
+        "restart_count": 1,
         "cpu_percent_max": 100.0,
-        "mem_percent_max": 78.7,
-        "swap_percent_max": 22.4,
-        "idle_minutes": 714.7,
+        "mem_percent_max": 74.1,
+        "swap_percent_max": 17.8,
+        "idle_minutes": 768.3,
         "neg_ratio_current": 0.6981,
         "completed": true,
         "progress_ratio": 0.5,
@@ -85,15 +85,15 @@
         },
         {
           "level": "R1",
+          "table": "reports",
+          "factor": "acceptance",
+          "message": "全部验收场景 verdict=fail，需人工复核"
+        },
+        {
+          "level": "R1",
           "table": "snapshots",
           "factor": "cpu",
           "message": "CPU 使用率峰值 100%（>95%）"
-        },
-        {
-          "level": "R2",
-          "table": "snapshots",
-          "factor": "restart",
-          "message": "检测到 3 次训练重启（>=2）"
         }
       ],
       "level": "R3",
@@ -104,8 +104,8 @@
         "当前训练尝试负奖励占比 70%（>50%），疑似崩溃",
         "策略输出标准差 0.0151（<0.05），疑似塌缩",
         "approx_kl 持续 40 个 eval 点超界（>=5），疑似数据损坏/发散",
-        "CPU 使用率峰值 100%（>95%）",
-        "检测到 3 次训练重启（>=2）"
+        "全部验收场景 verdict=fail，需人工复核",
+        "CPU 使用率峰值 100%（>95%）"
       ]
     },
     {
@@ -178,15 +178,15 @@
       "task": "balance",
       "seed": "seed01",
       "factors": {
-        "snapshot_count": 1223,
-        "time_span_minutes": 4879.2,
-        "timesteps_growth": -3776256.0,
-        "stall_minutes": 359.2,
+        "snapshot_count": 732,
+        "time_span_minutes": 560.3,
+        "timesteps_growth": -2326528.0,
+        "stall_minutes": 319.2,
         "current_stall_minutes": 319.2,
-        "restart_count": 3,
+        "restart_count": 1,
         "cpu_percent_max": 100.0,
         "mem_percent_max": 74.1,
-        "swap_percent_max": 13.7,
+        "swap_percent_max": 0.0,
         "idle_minutes": 35.6,
         "neg_ratio_current": null,
         "completed": false
@@ -202,28 +202,21 @@
           "level": "R2",
           "table": "snapshots",
           "factor": "stall",
-          "message": "timesteps 连续 359 分钟无增长（>=60）"
+          "message": "timesteps 连续 319 分钟无增长（>=60）"
         },
         {
           "level": "R2",
           "table": "snapshots",
           "factor": "stall_current",
           "message": "当前连续停滞 319 分钟（>=60）"
-        },
-        {
-          "level": "R2",
-          "table": "snapshots",
-          "factor": "restart",
-          "message": "检测到 3 次训练重启（>=2）"
         }
       ],
       "level": "R2",
       "decision": "resize",
       "reasons": [
         "CPU 使用率峰值 100%（>95%）",
-        "timesteps 连续 359 分钟无增长（>=60）",
-        "当前连续停滞 319 分钟（>=60）",
-        "检测到 3 次训练重启（>=2）"
+        "timesteps 连续 319 分钟无增长（>=60）",
+        "当前连续停滞 319 分钟（>=60）"
       ]
     },
     {
@@ -416,16 +409,16 @@
         "min_clear_min": -0.0003,
         "falls_mean": 0.0,
         "nan_count": 0,
-        "snapshot_count": 3983,
-        "time_span_minutes": 6764.1,
+        "snapshot_count": 4774,
+        "time_span_minutes": 7214.1,
         "timesteps_growth": 5905888.0,
-        "stall_minutes": 5726.3,
-        "current_stall_minutes": 5726.3,
+        "stall_minutes": 6176.3,
+        "current_stall_minutes": 6176.3,
         "restart_count": 0,
         "cpu_percent_max": 100.0,
         "mem_percent_max": 69.4,
         "swap_percent_max": 17.8,
-        "idle_minutes": 714.7,
+        "idle_minutes": 768.3,
         "neg_ratio_current": 0.9875,
         "completed": true
       },
@@ -609,16 +602,16 @@
         "std_last": 2.8966,
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
-        "snapshot_count": 2052,
-        "time_span_minutes": 3924.6,
+        "snapshot_count": 2843,
+        "time_span_minutes": 4374.6,
         "timesteps_growth": 4005888.0,
-        "stall_minutes": 3786.5,
-        "current_stall_minutes": 3786.5,
+        "stall_minutes": 4236.5,
+        "current_stall_minutes": 4236.5,
         "restart_count": 0,
         "cpu_percent_max": 100.0,
-        "mem_percent_max": 65.5,
+        "mem_percent_max": 67.1,
         "swap_percent_max": 17.8,
-        "idle_minutes": 714.7,
+        "idle_minutes": 768.3,
         "neg_ratio_current": 0.0125,
         "completed": true,
         "progress_ratio": 1.0,
@@ -720,15 +713,15 @@
         "std_last": 0.428,
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
-        "snapshot_count": 827,
-        "time_span_minutes": 4558.4,
-        "timesteps_growth": -958464.0,
-        "stall_minutes": 359.2,
+        "snapshot_count": 212,
+        "time_span_minutes": 239.5,
+        "timesteps_growth": 704512.0,
+        "stall_minutes": 182.5,
         "current_stall_minutes": 17.9,
-        "restart_count": 3,
+        "restart_count": 0,
         "cpu_percent_max": 100.0,
-        "mem_percent_max": 78.7,
-        "swap_percent_max": 22.4,
+        "mem_percent_max": 74.1,
+        "swap_percent_max": 0.0,
         "idle_minutes": 13.7,
         "neg_ratio_current": 0.5,
         "completed": false,
@@ -770,13 +763,7 @@
           "level": "R2",
           "table": "snapshots",
           "factor": "stall",
-          "message": "timesteps 连续 359 分钟无增长（>=60）"
-        },
-        {
-          "level": "R2",
-          "table": "snapshots",
-          "factor": "restart",
-          "message": "检测到 3 次训练重启（>=2）"
+          "message": "timesteps 连续 182 分钟无增长（>=60）"
         }
       ],
       "level": "R2",
@@ -787,8 +774,7 @@
         "当前训练尝试负奖励占比 50%（>30%）",
         "approx_kl=0.0595（>0.05）",
         "CPU 使用率峰值 100%（>95%）",
-        "timesteps 连续 359 分钟无增长（>=60）",
-        "检测到 3 次训练重启（>=2）"
+        "timesteps 连续 182 分钟无增长（>=60）"
       ]
     },
     {
@@ -817,15 +803,15 @@
         "max_dev_max": 0.4004,
         "falls_mean": 0.28,
         "nan_count": 0,
-        "snapshot_count": 576,
-        "time_span_minutes": 4050.4,
-        "timesteps_growth": 7733248.0,
-        "stall_minutes": 441.5,
-        "current_stall_minutes": 441.5,
+        "snapshot_count": 212,
+        "time_span_minutes": 239.5,
+        "timesteps_growth": 0.0,
+        "stall_minutes": 239.5,
+        "current_stall_minutes": 239.5,
         "restart_count": 0,
         "cpu_percent_max": 100.0,
-        "mem_percent_max": 78.7,
-        "swap_percent_max": 22.4,
+        "mem_percent_max": 74.1,
+        "swap_percent_max": 0.0,
         "idle_minutes": 13.7,
         "neg_ratio_current": 0.0125,
         "completed": true,
@@ -907,16 +893,16 @@
         "max_dev_max": 0.4073,
         "falls_mean": 1.0,
         "nan_count": 0,
-        "snapshot_count": 3973,
-        "time_span_minutes": 6763.6,
+        "snapshot_count": 4764,
+        "time_span_minutes": 7213.6,
         "timesteps_growth": 3983856.0,
-        "stall_minutes": 4086.9,
-        "current_stall_minutes": 4086.9,
+        "stall_minutes": 4536.8,
+        "current_stall_minutes": 4536.8,
         "restart_count": 2,
         "cpu_percent_max": 100.0,
         "mem_percent_max": 69.4,
         "swap_percent_max": 17.8,
-        "idle_minutes": 714.7,
+        "idle_minutes": 768.3,
         "neg_ratio_current": 0.6494,
         "completed": true,
         "progress_ratio": 1.0,
@@ -1530,8 +1516,8 @@
         "ev_neg_streak": 0,
         "value_loss_divergent": false,
         "report_rows": 1,
-        "verdict_fail_ratio": 0.0,
-        "success_rate_mean": 1.0,
+        "verdict_fail_ratio": 1.0,
+        "success_rate_mean": 0.0,
         "max_dev_max": 0.0398,
         "falls_mean": 0.0,
         "nan_count": 0,
@@ -1551,13 +1537,20 @@
           "table": "tb_points",
           "factor": "approx_kl",
           "message": "approx_kl=0.5671（>0.1）"
+        },
+        {
+          "level": "R1",
+          "table": "reports",
+          "factor": "acceptance",
+          "message": "全部验收场景 verdict=fail，需人工复核"
         }
       ],
       "level": "R2",
       "decision": "tune",
       "reasons": [
         "前25%训练步数内评估奖励始终低于阈值（从未学会型失败）",
-        "approx_kl=0.5671（>0.1）"
+        "approx_kl=0.5671（>0.1）",
+        "全部验收场景 verdict=fail，需人工复核"
       ]
     },
     {
@@ -1672,16 +1665,16 @@
         "max_dev_max": 0.5647,
         "falls_mean": 1.0,
         "nan_count": 0,
-        "snapshot_count": 3956,
-        "time_span_minutes": 6764.1,
+        "snapshot_count": 4747,
+        "time_span_minutes": 7214.1,
         "timesteps_growth": 4001376.0,
-        "stall_minutes": 4066.2,
-        "current_stall_minutes": 4066.2,
+        "stall_minutes": 4516.2,
+        "current_stall_minutes": 4516.2,
         "restart_count": 2,
         "cpu_percent_max": 100.0,
         "mem_percent_max": 69.4,
         "swap_percent_max": 17.8,
-        "idle_minutes": 714.7,
+        "idle_minutes": 768.3,
         "neg_ratio_current": 0.0909,
         "completed": true,
         "progress_ratio": 1.0,
@@ -1911,16 +1904,16 @@
         "max_dev_max": 0.4008,
         "falls_mean": 1.0,
         "nan_count": 0,
-        "snapshot_count": 3963,
-        "time_span_minutes": 6764.1,
+        "snapshot_count": 4754,
+        "time_span_minutes": 7214.1,
         "timesteps_growth": 8006416.0,
-        "stall_minutes": 3924.6,
-        "current_stall_minutes": 3924.6,
+        "stall_minutes": 4374.6,
+        "current_stall_minutes": 4374.6,
         "restart_count": 0,
         "cpu_percent_max": 100.0,
         "mem_percent_max": 69.4,
         "swap_percent_max": 17.8,
-        "idle_minutes": 714.7,
+        "idle_minutes": 768.3,
         "neg_ratio_current": 0.5442,
         "completed": true,
         "progress_ratio": 2.0,
@@ -2289,16 +2282,16 @@
         "max_dev_max": 0.4083,
         "falls_mean": 0.32,
         "nan_count": 0,
-        "snapshot_count": 389,
-        "time_span_minutes": 401.2,
+        "snapshot_count": 177,
+        "time_span_minutes": 221.0,
         "timesteps_growth": 0.0,
-        "stall_minutes": 401.2,
-        "current_stall_minutes": 401.2,
+        "stall_minutes": 221.0,
+        "current_stall_minutes": 221.0,
         "restart_count": 0,
         "cpu_percent_max": 100.0,
-        "mem_percent_max": 78.7,
-        "swap_percent_max": 22.4,
-        "idle_minutes": 1.1,
+        "mem_percent_max": 74.1,
+        "swap_percent_max": 0.0,
+        "idle_minutes": 0.0,
         "neg_ratio_current": null,
         "completed": true
       },
@@ -2557,6 +2550,43 @@
       ]
     },
     {
+      "task": "traverse_curve_multi_segment",
+      "seed": "m3",
+      "factors": {
+        "eval_points": 5,
+        "eval_last_timesteps": 1500000,
+        "eval_last_reward": 239.2166,
+        "eval_peak_reward": 245.8719,
+        "eval_drawdown": 0.0271,
+        "reward_peak_ratio": 0.9729,
+        "eval_slope_per_1e6": -24.4722,
+        "eval_std_recent": 1520.2,
+        "eval_neg_ratio": 0.0,
+        "eval_neg_ratio_recent": 0.0,
+        "approx_kl_last": 0.0546,
+        "kl_divergent": false,
+        "kl_divergent_streak": 0,
+        "std_last": 0.5142,
+        "ev_neg_streak": 0,
+        "value_loss_divergent": false,
+        "neg_ratio_current": 0.0,
+        "completed": true
+      },
+      "risks": [
+        {
+          "level": "R1",
+          "table": "tb_points",
+          "factor": "approx_kl",
+          "message": "approx_kl=0.0546（>0.05）"
+        }
+      ],
+      "level": "R1",
+      "decision": "watch",
+      "reasons": [
+        "approx_kl=0.0546（>0.05）"
+      ]
+    },
+    {
       "task": "traverse_curve_high_level",
       "seed": "seed01",
       "factors": {
@@ -2589,30 +2619,100 @@
       "level": "R0",
       "decision": "continue",
       "reasons": []
+    },
+    {
+      "task": "traverse_curve_multi_segment",
+      "seed": "m1",
+      "factors": {
+        "eval_points": 5,
+        "eval_last_timesteps": 250000,
+        "eval_last_reward": 141.9247,
+        "eval_peak_reward": 147.2185,
+        "eval_drawdown": 0.036,
+        "reward_peak_ratio": 0.964,
+        "eval_slope_per_1e6": -26.0606,
+        "eval_std_recent": 638.8,
+        "eval_neg_ratio": 0.0,
+        "eval_neg_ratio_recent": 0.0,
+        "approx_kl_last": 0.0173,
+        "kl_divergent": false,
+        "kl_divergent_streak": 0,
+        "std_last": 0.8219,
+        "ev_neg_streak": 0,
+        "value_loss_divergent": false,
+        "neg_ratio_current": 0.0,
+        "completed": true,
+        "early_low_reward": false
+      },
+      "risks": [],
+      "level": "R0",
+      "decision": "continue",
+      "reasons": []
+    },
+    {
+      "task": "traverse_curve_multi_segment",
+      "seed": "m2",
+      "factors": {
+        "eval_points": 5,
+        "eval_last_timesteps": 750000,
+        "eval_last_reward": 92.9166,
+        "eval_peak_reward": 97.9144,
+        "eval_drawdown": 0.051,
+        "reward_peak_ratio": 0.949,
+        "eval_slope_per_1e6": -19.7842,
+        "eval_std_recent": 906.2,
+        "eval_neg_ratio": 0.0,
+        "eval_neg_ratio_recent": 0.0,
+        "approx_kl_last": 0.0147,
+        "kl_divergent": false,
+        "kl_divergent_streak": 0,
+        "std_last": 0.716,
+        "ev_neg_streak": 0,
+        "value_loss_divergent": false,
+        "neg_ratio_current": 0.0,
+        "completed": true
+      },
+      "risks": [],
+      "level": "R0",
+      "decision": "continue",
+      "reasons": []
     }
   ],
-  "global_risks": [],
-  "global_level": "R0",
+  "global_risks": [
+    {
+      "level": "R3",
+      "table": "costs",
+      "factor": "cost_daily",
+      "message": "今日成本 26.75 元，达预算 535%（>=150%）"
+    },
+    {
+      "level": "R1",
+      "table": "costs",
+      "factor": "cost_weekly",
+      "message": "本周成本 26.97 元，达预算 90%（>=80%）"
+    }
+  ],
+  "global_level": "R3",
   "cost": {
     "present": true,
-    "daily_cost": 0.0,
-    "weekly_cost": 0.22,
-    "monthly_cost": 0.73,
-    "total_cost": 0.73,
+    "daily_cost": 26.75,
+    "weekly_cost": 26.97,
+    "monthly_cost": 27.48,
+    "total_cost": 27.48,
     "daily_budget": 5.0,
     "weekly_budget": 30.0,
     "monthly_budget": 120.0,
-    "cache_rate": 0.4959
+    "cache_rate": 0.4998
   },
   "resources": {
     "present": true,
-    "sampled_rows": 30583,
-    "cpu_mean": 50.4,
+    "sampled_rows": 33308,
+    "cpu_mean": 45.1,
     "cpu_max": 100.0,
-    "mem_mean": 51.4,
-    "mem_max": 78.7,
-    "swap_max": 22.4,
-    "load1_max": 21.4,
-    "idle_minutes": 714.7
+    "mem_mean": 50.4,
+    "mem_max": 74.1,
+    "swap_max": 17.8,
+    "load1_max": 17.0,
+    "idle_minutes": 768.3
   }
 }
