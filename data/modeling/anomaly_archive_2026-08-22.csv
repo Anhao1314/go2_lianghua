@@ -12,6 +12,8 @@ traverse_curve_dagger_ppo,seed00,insufficient,rule1: eval 点数 4 < 10,fail,4,�
 traverse_curve_high_level,seed00,anomalous,"rule1: eval 点数 4 < 10;rule2: 训练规模 max(last_eval=200000, total=None) < 500000;rule4: mean_reward 标准差 0.190 <= 1.0（曲线不可辨识）",fail,4,归档供鲁棒性测试，不删除
 traverse_curve_high_level,seed01,anomalous,"rule1: eval 点数 3 < 10;rule2: 训练规模 max(last_eval=150000, total=None) < 500000;rule4: mean_reward 标准差 0.696 <= 1.0（曲线不可辨识）",pass,3,归档供鲁棒性测试，不删除
 traverse_curve_high_level_bplus,seed00,insufficient,"rule1: eval 点数 7 < 10;rule2: 训练规模 max(last_eval=350000, total=None) < 500000",pass,7,归档供鲁棒性测试，不删除
+traverse_curve_junction,j1,anomalous,"rule1: eval 点数 5 < 10;rule2: 训练规模 max(last_eval=250000, total=None) < 500000;rule4: mean_reward 标准差 0.051 <= 1.0（曲线不可辨识）",pass,5,归档供鲁棒性测试，不删除
+traverse_curve_junction,j3,anomalous,rule1: eval 点数 5 < 10;rule4: mean_reward 标准差 0.548 <= 1.0（曲线不可辨识）,pass,5,归档供鲁棒性测试，不删除
 traverse_curve_multi_segment,m1,insufficient,"rule1: eval 点数 5 < 10;rule2: 训练规模 max(last_eval=250000, total=None) < 500000",pass,5,归档供鲁棒性测试，不删除
 traverse_curve_multi_segment,m2,insufficient,rule1: eval 点数 5 < 10,pass,5,归档供鲁棒性测试，不删除
 traverse_curve_multi_segment,m3,insufficient,rule1: eval 点数 5 < 10,pass,5,归档供鲁棒性测试，不删除
