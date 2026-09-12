@@ -16,6 +16,7 @@ import os
 import re
 import shutil
 import sqlite3
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
@@ -60,7 +61,8 @@ def expand_path(raw: str) -> Path:
 
 
 def load_config(path: str | Path | None = None) -> dict:
-    cfg_path = Path(path) if path else DEFAULT_CONFIG
+    local = PROJECT_ROOT / "config.local.json"
+    cfg_path = Path(path) if path else (local if local.exists() else DEFAULT_CONFIG)
     if not cfg_path.exists():
         raise FileNotFoundError(f"配置文件不存在: {cfg_path}")
     data = json.loads(cfg_path.read_text(encoding="utf-8"))
@@ -85,7 +87,18 @@ def write_frame(df: pd.DataFrame, table: str, out_dir: Path) -> None:
     """按 schema 列序写 CSV，UTF-8 BOM，Windows Excel 中文不乱码。"""
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{table}.csv"
-    df[table_columns(table)].to_csv(path, index=False, encoding="utf-8-sig")
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=out_dir, suffix=".tmp", delete=False,
+                                         mode="w", encoding="utf-8-sig", newline="") as temp:
+            temp_path = Path(temp.name)
+            df[table_columns(table)].to_csv(temp, index=False)
+            temp.flush()
+            os.fsync(temp.fileno())
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
 
 
 # ----------------------------------------------------------------------

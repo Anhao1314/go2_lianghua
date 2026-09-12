@@ -453,7 +453,7 @@ def _print_summary(s: dict[str, Any]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="go2w-quant 回测-实盘一致性校验（P0）")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"), help="config.json 路径")
+    parser.add_argument("--config", default=None, help="config.json 路径")
     parser.add_argument("--task", default="balance", help="task（默认 balance）")
     parser.add_argument("--seed", default="seed00", help="seed（默认 seed00）")
     parser.add_argument("--today", default=None, help="输出日期 YYYY-MM-DD（默认今天）")

@@ -592,7 +592,7 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="go2w-quant 数据筛选与异常归档")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--config", default=None)
     parser.add_argument("--today", default=None, help="报告日期 YYYY-MM-DD（默认今天）")
     parser.add_argument("--out", default=None, help="覆盖输出目录（默认 config.modeling_dir）")
     args = parser.parse_args()

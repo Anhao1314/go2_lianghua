@@ -238,7 +238,7 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="go2w-quant 量化风控日报")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--config", default=None)
     parser.add_argument("--today", default=None, help="报告日期 YYYY-MM-DD（默认今天）")
     parser.add_argument("--out", default=None, help="覆盖报告目录（默认 config.report_dir）")
     args = parser.parse_args()

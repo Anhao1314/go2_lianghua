@@ -1,4 +1,4 @@
-"""realtime_monitor.py - Windows 侧实时训练监控（建议制，飞书告警）。
+"""realtime_monitor.py - Windows 侧实时训练监控（本地建议制）。
 
 每 poll_interval_seconds（默认 5s）轮询 Linux webpanel API：
   GET {webpanel_url}/api/state    -> {resources, seeds[]}
@@ -6,18 +6,14 @@
 
 把每个 seed 的当前值适配成 factors.run_risk_items 可消费的因子字典
 （API -> 因子字典适配器），复用离线风控规则与阈值，绝不重实现；
-R2+ 按 (task, seed, factor) 冷却发送飞书通知，升级（R1->R2、R2->R3）免冷却。
 
-原则（参考梁文锋/幻方量化）：
-- 只通知、绝不自动干预训练（建议制，样本量尚不足以自动早停）；
+原则：
+- 只输出本地建议、绝不自动干预训练（建议制，样本量尚不足以自动早停）；
 - 复用 factors.py 的规则引擎，本模块只做字段适配；
-- 冷却机制防止卡死的 run 每 5 秒轰炸飞书；
-- 优雅降级：API 不可达 / 飞书失败均不崩溃，下轮重试。
 
 用法：
   python realtime_monitor.py                 # 前台守护，Ctrl+C 停止
   python realtime_monitor.py --once          # 单轮轮询（连通性测试）
-  python realtime_monitor.py --test-notify   # 发送飞书测试消息后退出
 """
 
 from __future__ import annotations
@@ -83,17 +79,14 @@ class SeedStatus:
 
 
 class RealtimeMonitor:
-    """实时监控器：轮询 -> 因子适配 -> 复用风控规则 -> 通知/表格/日志。"""
+    """实时监控器：轮询 -> 因子适配 -> 复用风控规则 -> 表格/日志。"""
 
     def __init__(self, cfg: dict[str, Any]) -> None:
         self.cfg = cfg
         self.mon: dict[str, Any] = cfg["monitor"]
         self.risk: dict[str, Any] = cfg["risk"]
-        self.base_url = str(self.mon.get("webpanel_url", "")).rstrip("/")
-        self.notify_min = str(self.mon.get("notify_min_level", "R2"))
-        self.cooldown_sec = float(self.mon.get("cooldown_minutes", 10)) * 60.0
+        self.base_url = str(self.mon.get("webpanel_url", "http://127.0.0.1:8787")).rstrip("/")
         self.state: dict[tuple[str, str], dict[str, Any]] = {}
-        self.notify_count = 0
         self.started_at = time.time()
         self._color = _enable_ansi()
         self._last_resources: dict[str, Any] = {}
@@ -154,7 +147,6 @@ class RealtimeMonitor:
             "kl_divergent": False,     # 当前 tb 点 KL 超界（含 NaN/缺失）标志
             "kl_divergent_streak": 0,  # 连续发散的 eval 轮数（按 eval 轮次计数）
             "prev_alive": None,
-            "last_notify": {},  # factor -> (timestamp, level)
             "last_factors": {},
             "eval_history": [],  # [timesteps, reward] 当前训练尝试的 eval 点序列（重启重置）
         }
@@ -341,103 +333,6 @@ class RealtimeMonitor:
         return risks
 
     # ------------------------------------------------------------------
-    # 飞书通知（冷却 + 升级免冷却；失败不记冷却）
-    # ------------------------------------------------------------------
-
-    def _maybe_notify(
-        self,
-        task: str,
-        seed_id: str,
-        seed: dict[str, Any],
-        f: dict[str, Any],
-        risks: list[factors.RiskItem],
-        level: str,
-        decision: str,
-    ) -> bool:
-        if factors.LEVEL_INDEX[level] < factors.LEVEL_INDEX[self.notify_min]:
-            return False
-        st = self.state[(task, seed_id)]
-        now = time.time()
-        to_send: list[factors.RiskItem] = []
-        for item in risks:
-            if factors.LEVEL_INDEX[item.level] < factors.LEVEL_INDEX[self.notify_min]:
-                continue
-            prev = st["last_notify"].get(item.factor)
-            if prev is None:
-                to_send.append(item)
-            else:
-                prev_ts, prev_level = prev
-                cooled = now - prev_ts >= self.cooldown_sec
-                escalated = factors.LEVEL_INDEX[item.level] > factors.LEVEL_INDEX[prev_level]
-                if cooled or escalated:
-                    to_send.append(item)
-        if not to_send:
-            return False
-        text = self._build_message(task, seed_id, seed, f, to_send, level, decision)
-        ok = self.send_feishu(text)
-        if ok:
-            for item in to_send:
-                st["last_notify"][item.factor] = (now, level)
-            self.notify_count += 1
-        return ok
-
-    def _build_message(
-        self,
-        task: str,
-        seed_id: str,
-        seed: dict[str, Any],
-        f: dict[str, Any],
-        items: list[factors.RiskItem],
-        level: str,
-        decision: str,
-    ) -> str:
-        total = self._total_steps(task)
-        cur_ts = float(f.get("eval_last_timesteps") or 0)
-        reward = float(f.get("eval_last_reward") or 0)
-        peak = f.get("eval_peak_reward")
-        peak_s = f"{peak:.2f}" if peak is not None else "未知"
-        dd = float(f.get("eval_drawdown") or 0)
-        progress = cur_ts / total if total > 0 else 0.0
-        history = [h for h in (seed.get("history") or []) if isinstance(h, (int, float))]
-        recent_s = ", ".join(f"{h:.2f}" for h in history[-5:]) if history else "无"
-        speed = _to_float(seed.get("speed"))
-        speed_s = f"{speed:.0f}" if speed is not None else "未知"
-        eta = _to_float(seed.get("eta_seconds"))
-        eta_s = f"{eta:.0f} 秒" if eta is not None else "未知"
-        rules = "\n".join(f"  - {i.message}" for i in items)
-        now_s = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return (
-            f"🚨 训练告警 [{level}] {task}/{seed_id}\n\n"
-            f"规则：\n{rules}\n"
-            f"当前步数：{int(cur_ts):,} / {int(total):,}（{progress:.0%}）\n"
-            f"当前奖励：{reward:.2f}（峰值 {peak_s}，回撤 {dd:.0%}）\n"
-            f"近期奖励：{recent_s}\n"
-            f"训练速度：{speed_s} 步/秒\n"
-            f"ETA：{eta_s}\n"
-            f"决策建议：{decision}\n\n"
-            f"时间：{now_s}"
-        )
-
-    def send_feishu(self, text: str) -> bool:
-        webhook = self.mon.get("feishu_webhook")
-        if not webhook:
-            print("[WARN] 未配置 feishu_webhook，跳过通知", flush=True)
-            return False
-        try:
-            r = requests.post(
-                webhook,
-                json={"msg_type": "text", "content": {"text": text}},
-                timeout=5,
-            )
-            ok = r.status_code == 200
-            if not ok:
-                print(f"[WARN] 飞书发送失败: HTTP {r.status_code}", flush=True)
-            return ok
-        except requests.RequestException as e:
-            print(f"[WARN] 飞书发送失败: {e}（不记冷却，下轮重试）", flush=True)
-            return False
-
-    # ------------------------------------------------------------------
     # 单轮轮询
     # ------------------------------------------------------------------
 
@@ -467,7 +362,6 @@ class RealtimeMonitor:
             level = factors.max_level(risks)
             decision, _reasons = factors.decide(f, risks, self.cfg)
             st["last_factors"] = f
-            self._maybe_notify(task, sid, merged, f, risks, level, decision)
             self._log_row(task, sid, merged, f, level, decision, risks)
             rows.append(
                 SeedStatus(
@@ -564,8 +458,7 @@ class RealtimeMonitor:
     def run(self) -> None:
         interval = float(self.mon.get("poll_interval_seconds", 5))
         print(
-            f"[realtime_monitor] 启动：{self.base_url}，每 {interval:g} 秒轮询，"
-            f"通知级别 >= {self.notify_min}（建议制，不自动干预训练）",
+            f"[realtime_monitor] 启动：{self.base_url}，每 {interval:g} 秒轮询（本地建议制，不自动干预训练）",
             flush=True,
         )
         try:
@@ -581,26 +474,18 @@ class RealtimeMonitor:
         except KeyboardInterrupt:
             pass
         duration = time.time() - self.started_at
-        print(
-            f"\n监控已停止。运行时长: {duration:.0f} 秒。发送通知: {self.notify_count} 条。",
-            flush=True,
-        )
+        print(f"监控已停止。运行时长: {duration:.0f} 秒。", flush=True)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="go2w-quant 实时训练监控（建议制，飞书告警）")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser = argparse.ArgumentParser(description="go2w-quant 实时训练监控（本地建议制）")
+    parser.add_argument("--config", default=None)
     parser.add_argument("--once", action="store_true", help="单轮轮询（连通性测试）")
-    parser.add_argument("--test-notify", action="store_true", help="发送飞书测试消息后退出")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
     monitor = RealtimeMonitor(cfg)
 
-    if args.test_notify:
-        ok = monitor.send_feishu("✅ 飞书通知测试成功")
-        print("发送成功" if ok else "发送失败", flush=True)
-        raise SystemExit(0 if ok else 1)
     if args.once:
         rows = monitor.poll_once()
         monitor.render_table(rows)

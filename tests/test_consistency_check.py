@@ -17,9 +17,6 @@ def make_cfg() -> dict:
     cfg["monitor"] = {
         "webpanel_url": "http://test.local:8787",
         "poll_interval_seconds": 5,
-        "feishu_webhook": "https://test.local/hook",
-        "notify_min_level": "R2",
-        "cooldown_minutes": 10,
         "log_csv": "data/monitor/realtime_log.csv",
         "enable_log": False,
         "total_steps_default": 8000000,
@@ -227,11 +224,9 @@ class ConsistencyCheckTest(unittest.TestCase):
             cc._restart_count(make_snaps([0.0, 30.0], [1384448.0, 12288.0])), 0)
         # 迷你 run 无回退
         self.assertEqual(cc._restart_count(mini_tables()["snapshots"]), 0)
-        # 真实数据存在规格回退（balance/seed00 快照流，3 次）
-        cfg = make_cfg()
-        snaps = cc._run_frame(pd.read_csv(PROJECT_ROOT / "data/datasets/snapshots.csv"),
-                              "balance", "seed00", by="time")
-        self.assertEqual(cc._restart_count(snaps), 1)
+        # 使用固定输入验证多次回退，避免滚动快照更新改变断言。
+        snaps = make_snaps([0., 30., 60., 90.], [200000., 8000., 300000., 9000.])
+        self.assertEqual(cc._restart_count(snaps), 2)
 
     def test_no_snapshots_raises(self):
         tables = mini_tables()

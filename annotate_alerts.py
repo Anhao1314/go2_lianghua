@@ -185,7 +185,7 @@ def build_annotations(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="R2/R3 告警崩溃标注")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--config", default=None)
     args = parser.parse_args()
     cfg = load_config(args.config)
     monitor_cfg = cfg.get("monitor", {})

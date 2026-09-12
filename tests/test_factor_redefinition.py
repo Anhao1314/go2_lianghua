@@ -21,9 +21,6 @@ def make_cfg() -> dict:
     cfg["monitor"] = {
         "webpanel_url": "http://test.local:8787",
         "poll_interval_seconds": 5,
-        "feishu_webhook": "https://test.local/hook",
-        "notify_min_level": "R2",
-        "cooldown_minutes": 10,
         "log_csv": "data/monitor/realtime_log.csv",
         "enable_log": False,
         "total_steps_default": 8000000,

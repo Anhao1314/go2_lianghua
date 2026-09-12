@@ -158,7 +158,7 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="go2w-quant 特征固化（B 方案）")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--config", default=None)
     parser.add_argument("--today", default=None, help="数据集日期 YYYY-MM-DD（默认今天）")
     parser.add_argument("--out", default=None, help="覆盖输出目录（默认 config.modeling_dir）")
     parser.add_argument("--screened", action="store_true",

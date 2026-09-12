@@ -295,7 +295,7 @@ def _pairs(evals: pd.DataFrame, task: str | None) -> list[tuple[str, str]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="go2w-quant 学习曲线拟合（B 方案）")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--config", default=None)
     parser.add_argument("--task", default=None, help="只拟合指定任务（默认全部）")
     parser.add_argument("--validate", action="store_true", help="completed run 外推 vs 实际末值")
     parser.add_argument("--today", default=None, help="日期 YYYY-MM-DD（默认今天）")

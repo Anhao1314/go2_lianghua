@@ -68,7 +68,7 @@ def print_summary(cfg: dict) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="go2w-quant 数据集统计")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--config", default=None)
     args = parser.parse_args()
     cfg = load_config(args.config)
     print_summary(cfg)

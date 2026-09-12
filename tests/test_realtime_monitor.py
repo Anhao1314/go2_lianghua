@@ -21,9 +21,6 @@ def make_cfg() -> dict:
     cfg["monitor"] = {
         "webpanel_url": "http://test.local:8787",
         "poll_interval_seconds": 5,
-        "feishu_webhook": "https://test.local/hook",
-        "notify_min_level": "R2",
-        "cooldown_minutes": 10,
         "log_csv": "data/monitor/realtime_log.csv",
         "enable_log": False,
         "total_steps_default": 8000000,
@@ -171,62 +168,12 @@ class RealtimeMonitorTest(unittest.TestCase):
         self.assertEqual(f["stall_minutes"], 30.0)  # max-so-far 持久
         self.assertEqual(f["current_stall_minutes"], 0.0)  # 当前停滞归零
 
-    # 4. 冷却：同因子 R2 三轮只发一条
-    def test_cooldown(self):
-        polls = [
-            seed_payload(timesteps=1000000, eval_reward=100.0),  # 首轮：峰值
-            seed_payload(timesteps=2000000, eval_reward=10.0),   # dd=0.9 -> R2 发送
-            seed_payload(timesteps=3000000, eval_reward=10.0),   # 冷却期内：不再发
-        ]
-        with patch("realtime_monitor.requests.post",
-                   return_value=MockResponse({"code": 0})) as post:
-            for s in polls:
-                with patch("realtime_monitor.requests.get",
-                           side_effect=mock_get_side_effect(state_payload([s]))):
-                    self.mon.poll_once()
-        self.assertEqual(post.call_count, 1)
-        self.assertEqual(self.mon.notify_count, 1)
-
-    # 5. 升级免冷却：R2 后 R3 同因子再发；再 R3 不发
-    def test_level_escalation(self):
-        task, sid = "balance", "seed00"
-        self.mon.state[(task, sid)] = self.mon._new_state()
-        st = self.mon.state[(task, sid)]
-        seed = seed_payload()
-        f = {"eval_drawdown": 0.9, "eval_last_reward": 10.0,
-             "eval_last_timesteps": 1000000, "eval_peak_reward": 100.0}
-        r2 = [factors.RiskItem("R2", "eval_points", "drawdown", "回撤90%")]
-        r3 = [factors.RiskItem("R3", "eval_points", "drawdown", "回撤严重")]
-        with (
-            patch("realtime_monitor.time.time", return_value=1000.0),
-            patch("realtime_monitor.requests.post",
-                  return_value=MockResponse({"code": 0})) as post,
-        ):
-            self.assertTrue(self.mon._maybe_notify(task, sid, seed, f, r2, "R2", "stop"))
-            self.assertTrue(self.mon._maybe_notify(task, sid, seed, f, r3, "R3", "stop"))
-            self.assertFalse(self.mon._maybe_notify(task, sid, seed, f, r3, "R3", "stop"))
-        self.assertEqual(post.call_count, 2)
-
-    # 6. API 故障不崩溃
     def test_api_failure(self):
         with patch("realtime_monitor.requests.get",
                    side_effect=requests.ConnectionError("down")):
             rows = self.mon.poll_once()
         self.assertEqual(rows, [])
 
-    # 7. 飞书消息格式
-    def test_feishu_message_format(self):
-        seed = seed_payload(timesteps=4000000, eval_reward=-18.8,
-                            history=[10.0, 5.0, -5.0, -10.0, -18.8])
-        f = {"eval_last_timesteps": 4000000, "eval_last_reward": -18.8,
-             "eval_peak_reward": 100.0, "eval_drawdown": 1.0}
-        items = [factors.RiskItem("R2", "eval_points", "neg_ratio", "负值占比高")]
-        msg = self.mon._build_message("balance", "seed00", seed, f, items, "R2", "stop")
-        for piece in ("训练告警 [R2]", "balance/seed00", "当前奖励：-18.80",
-                      "回撤 100%", "决策建议：stop", "4,000,000 / 8,000,000"):
-            self.assertIn(piece, msg)
-
-    # 8. 新 run 检测：步数回退（<10k）与 alive 翻转均重置
     def test_new_run_detection(self):
         with patch("realtime_monitor.requests.get",
                    side_effect=mock_get_side_effect(

@@ -6,3 +6,7 @@ data/*.log
 data/.quant_last_date
 data/quant.log
 data/monitor/
+
+config.local.json
+.env
+.pytest_cache/

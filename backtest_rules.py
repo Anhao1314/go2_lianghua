@@ -820,7 +820,7 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="go2w-quant 规则止损回测（B 方案 P0）")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--config", default=None)
     parser.add_argument("--today", default=None, help="报告日期 YYYY-MM-DD（默认今天）")
     parser.add_argument("--out", default=None, help="覆盖输出目录（默认 config.modeling_dir）")
     parser.add_argument("--step-minutes", type=int, default=10, help="扫描粒度分钟（默认 10）")

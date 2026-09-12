@@ -54,7 +54,7 @@ def build_factors_cache(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="go2w-quant 统一管线入口（方案 A）")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--config", default=None)
     parser.add_argument("--today", default=None, help="日期 YYYY-MM-DD（默认今天）")
     parser.add_argument("--skip", default=None,
                         help="跳过步骤，逗号分隔：" + ",".join(SKIP_NAMES))
