@@ -196,19 +196,19 @@ class LoadAllTablesTest(unittest.TestCase):
 
         )
 
-        self.assertEqual(len(tables["runs"]), 48)
+        self.assertEqual(len(tables["runs"]), len(pd.read_csv(PROJECT_ROOT / "data/datasets/runs.csv")))
 
-        self.assertEqual(len(tables["eval_points"]), 1762)
+        self.assertEqual(len(tables["eval_points"]), len(pd.read_csv(PROJECT_ROOT / "data/datasets/eval_points.csv")))
 
-        self.assertEqual(len(tables["tb_points"]), 12303)
+        self.assertEqual(len(tables["tb_points"]), len(pd.read_csv(PROJECT_ROOT / "data/datasets/tb_points.csv")))
 
-        self.assertEqual(len(tables["snapshots"]), 33334)
+        self.assertEqual(len(tables["snapshots"]), len(pd.read_csv(PROJECT_ROOT / "data/datasets/snapshots.csv")))
 
-        self.assertEqual(len(tables["reports"]), 28)
+        self.assertEqual(len(tables["reports"]), len(pd.read_csv(PROJECT_ROOT / "data/datasets/reports.csv")))
 
-        self.assertEqual(len(tables["costs"]), 5)
+        self.assertEqual(len(tables["costs"]), len(pd.read_csv(PROJECT_ROOT / "data/datasets/costs.csv")))
 
-        self.assertEqual(len(tables["labels"]), 48)
+        self.assertEqual(len(tables["labels"]), len(pd.read_csv(PROJECT_ROOT / "data/datasets/labels.csv")))
 
 
 
