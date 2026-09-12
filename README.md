@@ -1,79 +1,124 @@
-# go2w-quant：机器人训练实验数据采集与分析
+# RL Training Risk Replay & Quantitative Analysis
 
-采集 Go2w 强化学习训练日志，将评估曲线、TensorBoard、资源快照、验收结果与成本整理为 CSV，并提供因子分析、规则回放和本地监控。
+A quantitative research system for Go2W reinforcement-learning experiments, combining progress-filtered historical replay, configurable risk decisions, data-quality validation and cached time-series analysis.
+
+**Domain:** robot training logs and resource telemetry. **Stack:** Python, pandas, NumPy, SciPy, scikit-learn, TensorBoard. **Quality:** 265 tests passed in the documented local run; full Pyright currently reports errors.
+
+[中文说明](README.zh-CN.md) · [Validation and claim boundaries](docs/portfolio-validation.md)
+
+## 1. Overview
+
+Collect evaluation curves, TensorBoard scalars, resource snapshots and acceptance reports into structured CSVs. Explore failure signals, replay local recommendations and compare post-hoc baselines. The algorithmic focus is temporal visibility, rule-based decisions and reliable experimental data rather than dashboard UI.
+
+This is training-run analysis, not a market-price, order-execution or trading-return backtester. Online replay implements partial visibility safeguards; it is **not yet end-to-end look-ahead safe**.
+
+## 2. Key Results
+
+| Verified fact | Evidence and scope |
+|---|---|
+| **265 tests passed** | Python 3.12.14 / macOS, 2026-09-12; no skips in this execution. See validation record. |
+| **4 risk levels: R0–R3** | `factors.py`: configurable RiskItem accumulation and decision matrix. |
+| **6 data-quality categories / 20+ checks** | Missingness, outliers, time continuity, duplicates, label consistency and cross-table integrity; `scripts/data_quality_check.py` and its tests. |
+| **3 built-in replay predictors** | Rule engine, always-continue and always-stop; deterministic fixture tests in `tests/test_backtest_engine.py`. |
+
+No numeric speedup or successful-sample false-kill claim is established by this verification. Structural counts are implemented capabilities, not predictive accuracy.
+
+## 3. Why Look-ahead Bias Matters
+
+A decision at time T must not see an experiment's eventual verdict or later telemetry. `online_view` truncates snapshots by time and eval/TensorBoard rows by observed progress, excludes reports and forces `completed=False`. Rolling training-set selection requires each selected run's estimated end time to precede the target start.
+
+**Remaining boundary:** the view still copies the entire `runs` table, including final verdict/duration and unrelated future runs. End-time estimates and label availability are not tracked as-of T. The existing `test_no_time_leakage` checks training-set membership, not full predictor input isolation. These mechanisms therefore do not establish an end-to-end guarantee.
+
+## 4. Architecture
 
 ```mermaid
 flowchart LR
- A[训练日志与快照] --> B[采集 CSV]
- B --> C[人工标签合并]
- C --> D[因子与筛选]
- D --> E[事后分析与规则回测]
- A --> F[本地实时监控]
+ A[Training logs and telemetry] --> B[Collector and CSV schema]
+ B --> C[Manual label merge]
+ C --> D[Data-quality checks]
+ C --> E[Post-hoc factors and cached pipeline]
+ C --> F[Progress-filtered replay]
+ F --> G[Predictor plugins and R0-R3 decisions]
+ E --> H[Analysis reports]
+ G --> H
+ I[Local training-panel polling] --> J[Local recommendations and logs]
 ```
 
-## 离线快速开始
+Replay and post-hoc analysis have different information boundaries. Manual nonempty labels override automated fields by `(task, seed)`; duplicate or invalid labels raise errors.
 
-Python 3.10+；Windows 与 Linux 均可分析已提交样例，不需要连接训练端。
+## 5. Online Backtesting
+
+- `backtest_rules.py`: snapshot-axis rule replay and estimated counterfactual training cost.
+- `backtest_engine.py`: chronological target runs, eligible historical training runs and decision-progress checkpoints.
+- Predictor interface: `(train_runs_info, target_online, cfg) -> {stop, confidence, reason}`.
+- Outputs record skipped cases and end-time method (`actual`, `step_rate`, `task_mean`).
+
+Rule confidence is derived from severity, not a calibrated probability. Lack of snapshots can exclude successful runs from rolling evaluation. The recorded run at progress 0.3/0.5 had four labeled failures and **no successful samples**; false-kill rate was N/A. Its apparent accuracy is unsuitable as a headline result.
+
+## 6. Risk Engine
+
+`run_factors` extracts reward drawdown, low-reward windows, KL/value-loss signals, stagnation, restarts and resource pressure. `run_risk_items` accumulates threshold-driven risk items; `decide` maps R0–R3 to `continue`, `watch`, `stop`, `tune` or `resize`.
+
+These are local recommendations. The monitor does not send external notifications or automatically stop training. Exact rule count depends on whether factor codes, threshold branches or decision conditions are counted; this README does not claim “17 composable rules.”
+
+## 7. Data Quality
+
+The read-only checker emits Markdown/CSV and optional JSON issues. Six categories cover missingness, outliers, temporal continuity, duplicates, label consistency and integrity. Exit codes: 0 without critical issues, 1 with critical issues, 2 for runtime failures.
+
+`data_screening.py` separately classifies experiment records as good, insufficient or anomalous using four screening rules. Validation functionality does not imply the committed dataset is issue-free.
+
+## 8. Performance Optimization
+
+`run_pipeline.py` loads tables once and passes DataFrames and a per-run factor cache between analysis stages. `tests/test_pipeline.py` checks cached/direct output equivalence and standalone/pipeline compatibility. Rule replay keeps its time-specific computation separate from full-run caching.
+
+The CLI supports `--verbose` stage timings. No controlled baseline supports 97s→21s or 4.6×; a future benchmark must fix input commit, environment, stages and output-equivalence criteria.
+
+## 9. Validation
+
+Tests cover CSV collection and schema behavior, manual-label precedence, risk factors, chronological training selection, replay checkpoints, deterministic outputs, fold-local preprocessing, pipeline equivalence and failure-safe automation.
+
+Full-run baselines use final acceptance information and are **post-hoc analyses**, not validated early-stop or ETA predictors. Leave-one-out preprocessing is fitted within each training fold; historical reports with older preprocessing must not be reused as current performance claims.
+
+## 10. Quick Start
+
+Offline analysis needs no training server. Python 3.12 is the current validation/CI target.
 
 ```bash
 git clone https://github.com/Anhao1314/go2_lianghua.git
 cd go2_lianghua
 python -m venv .venv
-# Linux/macOS
 source .venv/bin/activate
-# Windows PowerShell 使用 .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt
 python summary.py
-python run_pipeline.py --today 2026-09-06 --out data/modeling/local_review
-python baseline.py --dataset data/modeling/local_review/dataset_2026-09-06.csv --out data/modeling/local_review
+python run_pipeline.py --today 2026-09-12 --out data/modeling/local_review --verbose
+python backtest_engine.py --today 2026-09-12 --out data/modeling/local_replay --decision-progress 0.3,0.5,0.7
+python -c "import shutil; shutil.copytree('data/datasets', 'data/quality/local_review/datasets', dirs_exist_ok=True)"
+python scripts/data_quality_check.py --today 2026-09-12 --out data/quality/local_review --json
 ```
 
-`--today` 仅用于输出日期，不会截断输入数据。上述管线只读取已提交数据，输出到独立目录；不采集、不通知、不推送。Windows 入口见 [WINDOWS.md](WINDOWS.md)。
+Output directories are separate from historical reports. `--today` labels outputs; it does not truncate input data. The quality checker uses the configured dataset and may legitimately report existing issues.
 
-## 数据采集端
+For collection, copy `config.example.json` to ignored `config.local.json` and specify the training source. Public defaults have no collection source. See [Chinese operational guide](README.zh-CN.md), [Windows guide](WINDOWS.md), [data dictionary](DATA_DICTIONARY.md) and [math definitions](MATH_LIBRARY.md). Do not run collection concurrently with analysis. Data-sync scripts can commit/push; they are not part of offline reproduction.
 
-复制 `config.example.json` 为被忽略的 `config.local.json`，填写本机 `source_repo`，需要成本数据时填写 `lianghua_db`。无 `--config` 参数时优先读取本地配置，否则读取公开默认配置。公开默认配置没有采集源。
+## 11. Tests & Quality
 
 ```bash
-python collector.py
+python -m pytest tests/ -q
+python -m pyright --pythonpath .venv/bin/python --outputjson
 ```
 
-采集器只读训练源，写入本仓库数据目录。采集器对每个 CSV 原子替换，但多表仍非整批事务；读取与采集不应并发。`duration_seconds` 为快照观测跨度，不是有效计算时长。
+On Windows use `.venv\Scripts\python.exe` for `--pythonpath`. Local verification: **265 passed**, **Pyright 1,645 errors / 0 warnings across 36 Python files**. Runtime requirements currently use lower bounds, not a fully locked environment.
 
-## 本地监控端
+GitHub Actions installs dependencies, gates on tests and runs full Pyright as an **advisory** check with an uploaded diagnostic report. A successful workflow does not mean type checking passed. There is no fabricated tests/CI badge. No license has been selected.
 
-```bash
-python realtime_monitor.py --once
-python realtime_monitor.py
-```
+## 12. Limitations
 
-默认读取 localhost:8787；在本地配置中调整训练面板地址。监控输出本地表格、风险建议与日志，不发送飞书消息，也不自动停止训练。ETA 是现有进度估算，不是已验证的预测模型。
+- Predictor inputs are not fully isolated from final metadata; do not claim look-ahead-safe operation yet.
+- Sparse/uneven labels and snapshot coverage limit false-positive, cross-task and sample-out validation.
+- Snapshot duration measures observation span, not effective compute time; savings are counterfactual estimates, not realized cost reductions.
+- CSV replacement is atomic per file, not a multi-table transaction; live collection and cross-platform collection are not validated by offline CI.
+- Full Pyright has unresolved findings. Dependencies are not fully pinned.
+- No production trading, live capital, return-rate, user/customer or autonomous early-stop claim.
 
-## 分析边界
-
-- 当前基线使用全程特征及最终验收信息，仅用于事后分析；不证明早停、ETA 或跨任务预测能力。
-- 基线留一验证在每折训练样本内拟合填充与标准化；历史报告未重新计算，以新 `baseline_fold_safe_*` 报告为准。
-- 有效标签与独立训练样本有限，缺失数据和负 R² 必须随结果说明。
-- 规则回测为历史回放；实时与离线可用信息不同。
-
-## 自动化与同步
-
-安装定时任务前先手动验证采集和离线管线。每日任务采集失败即停止，管线成功才写日期标记，失败后下轮重试。
-
-```bash
-bash scripts/sync_github.sh --check
-bash scripts/sync_github.sh --once
-```
-
-`--once` 会提交并推送数据，要求目标分支匹配、暂存区为空、没有非数据改动且远端未领先；冲突需人工处理。保留多表原子发布、run_id 与历史迁移为下一阶段工作。
-
-## 文档与开发检查
-
-[数据字典](DATA_DICTIONARY.md) · [数学定义](MATH_LIBRARY.md) · [路线图](QUANT_PLAN.md) · [开发约定](AGENTS.md)
-
-```bash
-pip install pytest
-pytest tests/
-```
-
-当前仓库尚未明确开源许可证。
+Next priorities: as-of metadata and label availability, future-data mutation tests, type debt reduction, comparable benchmarks and multi-table publication consistency. [Research history](PHASE_RECORD.md) is historical context, not current performance evidence.

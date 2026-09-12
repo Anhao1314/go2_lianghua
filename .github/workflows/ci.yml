@@ -1,0 +1,48 @@
+name: Offline validation
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Unit and offline regression tests
+        run: python -m pytest tests/ -q
+      - name: Full type check (advisory; known type debt)
+        id: types
+        continue-on-error: true
+        run: python -m pyright --pythonpath "$(command -v python)" --outputjson > pyright-results.json
+      - name: Summarize type diagnostics
+        if: always()
+        run: |
+          python - <<'PYREPORT'
+          import json, os
+          from pathlib import Path
+          p = Path('pyright-results.json')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write('## Full Pyright: advisory, not a passing quality gate\n')
+              if p.exists():
+                  try:
+                      s = json.loads(p.read_text())['summary']
+                      out.write(f"Files: {s['filesAnalyzed']}; errors: {s['errorCount']}; warnings: {s['warningCount']}\n")
+                  except (ValueError, KeyError):
+                      out.write('Type-check report could not be parsed; inspect step log.\n')
+              else:
+                  out.write('Type check did not produce a report.\n')
+          PYREPORT
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-pyright-diagnostics
+          path: pyright-results.json
+          if-no-files-found: warn
