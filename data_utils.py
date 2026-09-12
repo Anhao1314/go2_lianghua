@@ -30,14 +30,41 @@ def _resolve_out_dir(cfg: dict | None) -> pathlib.Path:
     return PROJECT_ROOT / "data"
 
 
+def _validate_label_frame(df: pd.DataFrame, name: str, *, fields: bool = True) -> None:
+    keys = ["task", "seed"]
+    if any(k not in df for k in keys):
+        raise ValueError(f"{name}: 缺少 task/seed")
+    if df[keys].isna().any().any() or df[keys].astype(str).apply(lambda c: c.str.strip().eq("")).any().any():
+        raise ValueError(f"{name}: 空 task/seed")
+    if df.duplicated(keys).any():
+        raise ValueError(f"{name}: 重复 task/seed")
+    if not fields:
+        return
+    if "verdict" in df:
+        values = df["verdict"].dropna()
+        if not values.isin(["pass", "fail", "unknown"]).all():
+            raise ValueError(f"{name}: 非法 verdict")
+    if "success_rate" in df:
+        raw = df["success_rate"]
+        values = pd.to_numeric(raw, errors="coerce")
+        if (raw.notna() & (values.isna() | ~values.between(0, 1))).any():
+            raise ValueError(f"{name}: 非法 success_rate")
+    if "label_updated_at" in df:
+        for value in df["label_updated_at"].dropna():
+            if pd.isna(pd.to_datetime(value, errors="coerce")):
+                raise ValueError(f"{name}: 非法 label_updated_at")
+
+
 def _merge_manual(base: pd.DataFrame, manual: pd.DataFrame) -> pd.DataFrame:
     """按 (task, seed) 左连接 manual，人工字段非空值覆盖原文件值。
 
     只覆盖 base 已存在的列：runs schema 不含 label_source/label_updated_at，
     合并后不得引入多余列，否则 validate_frame 报"多余列"错误。
     """
+    _validate_label_frame(base, "base", fields=False)
+    _validate_label_frame(manual, "manual")
     base_cols = set(base.columns)
-    merged = base.merge(manual, on=["task", "seed"], how="left", suffixes=("", "_manual"))
+    merged = base.merge(manual, on=["task", "seed"], how="left", suffixes=("", "_manual"), validate="one_to_one")
     for col in MANUAL_COLUMNS:
         if col not in base_cols:
             if col in merged.columns:
@@ -58,6 +85,7 @@ def load_runs_merged(cfg: dict | None = None) -> pd.DataFrame | None:
     if not runs_path.exists():
         return None
     runs = pd.read_csv(runs_path, encoding="utf-8-sig")
+    _validate_label_frame(runs, "runs", fields=False)
     if manual_path.exists():
         manual = pd.read_csv(manual_path, encoding="utf-8-sig")
         runs = _merge_manual(runs, manual)
@@ -72,6 +100,7 @@ def load_labels_merged(cfg: dict | None = None) -> pd.DataFrame | None:
     if not labels_path.exists():
         return None
     labels = pd.read_csv(labels_path, encoding="utf-8-sig")
+    _validate_label_frame(labels, "labels", fields=False)
     if manual_path.exists():
         manual = pd.read_csv(manual_path, encoding="utf-8-sig")
         labels = _merge_manual(labels, manual)

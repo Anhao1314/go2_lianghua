@@ -1,11 +1,11 @@
-"""基线模型：验收早停分类（verdict）与训练耗时回归（duration_seconds）。
+"""基线模型：事后验收分类（verdict）与训练耗时回归（duration_seconds）。
 
 数据量门槛（当前样本极少，结果仅作基线记录，不作为训练决策依据）：
   - verdict 分类：正负样本各 >= MIN_PER_CLASS 才启用留一交叉验证（LOO），
     否则只打印标签分布与单变量相关性；
   - success_rate / duration 回归：有效样本 >= MIN_REGRESSION 才启用 LOO，
     否则只打印单变量相关性。
-样本量达到门槛后，由 v3 正式模型（概率化早停）接管。
+当前特征含最终验收信息，不用于在线早停或 ETA 预测。
 
 用法：
   python baseline.py --config config.json                 # 用最新数据集
@@ -26,6 +26,9 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, r2_score
 from sklearn.model_selection import LeaveOneOut
 from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+import subprocess
 
 from collector import PROJECT_ROOT, load_config
 from modeling import Y_COLUMNS, resolve_out_dir
@@ -65,7 +68,7 @@ def feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
     """X：除 task/seed/y 外的全部数值特征；全空列丢弃。"""
     x_cols = [c for c in df.columns if c not in ("task", "seed") + tuple(Y_COLUMNS)]
     X = df[x_cols].apply(pd.to_numeric, errors="coerce")
-    return X.dropna(axis=1, how="all")
+    return X.replace([np.inf, -np.inf], np.nan).dropna(axis=1, how="all")
 
 
 def univariate_corrs(X: pd.DataFrame, y: pd.Series, top: int = TOP_CORR) -> pd.DataFrame:
@@ -89,17 +92,22 @@ def univariate_corrs(X: pd.DataFrame, y: pd.Series, top: int = TOP_CORR) -> pd.D
     return out
 
 
-def _fill_and_scale(Xy: pd.DataFrame, y: pd.Series) -> tuple[np.ndarray, np.ndarray, list[str]]:
-    """中位数填充 + 标准化（仅在有效样本上拟合），返回 X 矩阵与特征名。"""
-    med = Xy.median()
-    filled = Xy.fillna(med)
-    scaler = StandardScaler()
-    Xs = scaler.fit_transform(filled)
-    return Xs, y.to_numpy(dtype=float), list(Xy.columns)
+def _model_pipeline(estimator):
+    """预处理仅在每折训练样本上拟合；全空训练列以零填充。"""
+    return Pipeline([
+        ("imputer", SimpleImputer(strategy="median", keep_empty_features=True)),
+        ("scaler", StandardScaler()),
+        ("model", estimator),
+    ])
+
+
+def _valid_fold(X, train_idx):
+    return bool(X.iloc[train_idx].notna().any().any())
 
 
 def verdict_baseline(df: pd.DataFrame, X: pd.DataFrame) -> dict:
-    """验收早停分类基线：pass=1 / fail=0，留一交叉验证 vs 多数类 Dummy。"""
+    """事后验收分类基线：pass=1 / fail=0，留一交叉验证 vs 多数类 Dummy。"""
+    X = X.replace([np.inf, -np.inf], np.nan)
     y = df["verdict"].map({"pass": 1, "fail": 0}).dropna()
     n_pos = int((y == 1).sum())
     n_neg = int((y == 0).sum())
@@ -113,18 +121,21 @@ def verdict_baseline(df: pd.DataFrame, X: pd.DataFrame) -> dict:
         out["status"] = "insufficient"
         out["reason"] = "有效样本内无可用特征"
         return out
-    Xs, yv, cols = _fill_and_scale(Xy, y)
+    Xs, yv, cols = Xy, y.to_numpy(dtype=float), list(Xy.columns)
 
-    model = LogisticRegression(max_iter=2000)
+    model = _model_pipeline(LogisticRegression(max_iter=2000))
     dummy = DummyClassifier(strategy="most_frequent")
     loo = LeaveOneOut()
     y_pred: list[int] = []
     y_dummy: list[int] = []
     for train_idx, test_idx in loo.split(Xs):
-        model.fit(Xs[train_idx], yv[train_idx].astype(int))
-        dummy.fit(Xs[train_idx], yv[train_idx].astype(int))
-        y_pred.append(int(model.predict(Xs[test_idx])[0]))
-        y_dummy.append(int(dummy.predict(Xs[test_idx])[0]))
+        if not _valid_fold(Xs, train_idx):
+            out.update(status="insufficient", reason="某折训练样本无可用特征")
+            return out
+        model.fit(Xs.iloc[train_idx], yv[train_idx].astype(int))
+        dummy.fit(Xs.iloc[train_idx], yv[train_idx].astype(int))
+        y_pred.append(int(model.predict(Xs.iloc[test_idx])[0]))
+        y_dummy.append(int(dummy.predict(Xs.iloc[test_idx])[0]))
     out.update(
         {
             "status": "ok",
@@ -139,8 +150,9 @@ def verdict_baseline(df: pd.DataFrame, X: pd.DataFrame) -> dict:
 
 def regression_baseline(df: pd.DataFrame, X: pd.DataFrame, target: str) -> dict:
     """回归基线：LOO 线性回归 vs 中位数 Dummy，输出 R2/MAE 与特征重要性。"""
+    X = X.replace([np.inf, -np.inf], np.nan)
     y = pd.to_numeric(df[target], errors="coerce")
-    mask = y.notna()
+    mask = y.notna() & np.isfinite(y)
     n = int(mask.sum())
     out: dict = {"target": target, "n": n}
     if n < MIN_REGRESSION:
@@ -154,22 +166,25 @@ def regression_baseline(df: pd.DataFrame, X: pd.DataFrame, target: str) -> dict:
         out["status"] = "insufficient"
         out["reason"] = "有效样本内无可用特征"
         return out
-    Xs, yv, cols = _fill_and_scale(Xy, y[mask])
+    Xs, yv, cols = Xy, y[mask].to_numpy(dtype=float), list(Xy.columns)
 
-    model = LinearRegression()
+    model = _model_pipeline(LinearRegression())
     dummy = DummyRegressor(strategy="median")
     loo = LeaveOneOut()
     y_pred: list[float] = []
     y_dummy: list[float] = []
     for train_idx, test_idx in loo.split(Xs):
-        model.fit(Xs[train_idx], yv[train_idx])
-        dummy.fit(Xs[train_idx], yv[train_idx])
-        y_pred.append(float(model.predict(Xs[test_idx])[0]))
-        y_dummy.append(float(dummy.predict(Xs[test_idx])[0]))
+        if not _valid_fold(Xs, train_idx):
+            out.update(status="insufficient", reason="某折训练样本无可用特征")
+            return out
+        model.fit(Xs.iloc[train_idx], yv[train_idx])
+        dummy.fit(Xs.iloc[train_idx], yv[train_idx])
+        y_pred.append(float(model.predict(Xs.iloc[test_idx])[0]))
+        y_dummy.append(float(dummy.predict(Xs.iloc[test_idx])[0]))
 
     model.fit(Xs, yv)  # 全量拟合用于特征重要性（标准化系数）
     coefs = pd.Series(
-        model.coef_, index=cols, name="coef"
+        model.named_steps["model"].coef_, index=cols, name="coef"
     ).abs().sort_values(ascending=False).head(TOP_CORR)
     out.update(
         {
@@ -204,16 +219,29 @@ def run_baselines(df: pd.DataFrame) -> dict:
     return results
 
 
+def code_revision() -> str:
+    try:
+        rev = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJECT_ROOT, text=True).strip()
+        dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=PROJECT_ROOT, text=True)
+        return rev + (" (dirty)" if dirty else "")
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
 def render_markdown(res: dict, dataset_path: pathlib.Path) -> str:
     lines = [
         "# go2w-quant 基线模型报告",
         "",
         f"- 数据集: `{dataset_path.name}`（{res['n_runs']} runs，{res['n_features']} 特征）",
         f"- 生成时间: {_Date.today().isoformat()}",
+        f"- 代码版本: {code_revision()}",
+        "- 评估方式: 留一交叉验证；填充和标准化仅拟合每折训练样本。",
+        "- 当前为全程数据事后分析，含最终验收特征；不证明在线预测或跨任务泛化。",
+        "- 特征重要性来自单独全量拟合，不属于交叉验证结果。",
         "",
-        "> 当前样本量远低于可训练门槛，结果只作管线验证与基线记录，不作为训练决策依据。",
+        "> 当前样本量及验证范围有限，结果只作事后分析与基线记录，不作为训练决策依据。",
         "",
-        "## 一、verdict 分类（验收早停）",
+        "## 一、verdict 分类（事后分析）",
         "",
     ]
     v = res["verdict"]
@@ -225,7 +253,7 @@ def render_markdown(res: dict, dataset_path: pathlib.Path) -> str:
             f"- 使用特征数：{v['n_features']}",
         ]
     else:
-        lines.append(f"- 样本不足（门槛：正负样本各 ≥{MIN_PER_CLASS}），未训练模型。")
+        lines.append(f"- 不可评估：{v.get('reason', '正负样本不足')}，未训练模型。")
     lines += ["", "## 二、回归（success_rate / duration_seconds）", ""]
     for t in ("success_rate", "duration_seconds"):
         r = res[t]
@@ -238,7 +266,7 @@ def render_markdown(res: dict, dataset_path: pathlib.Path) -> str:
                 + ", ".join(f"{k}({v})" for k, v in r["top_features"].items()),
             ]
         else:
-            lines.append(f"- 样本不足（门槛：≥{MIN_REGRESSION}），未训练模型。")
+            lines.append(f"- 不可评估：{r.get('reason', '有效样本不足')}，未训练模型。")
         lines.append("")
     lines.append("## 三、单变量相关性 Top（信息性参考）")
     for t, corr in res["corrs"].items():
@@ -253,7 +281,7 @@ def render_markdown(res: dict, dataset_path: pathlib.Path) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="go2w-quant 基线模型（B 方案）")
-    parser.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
+    parser.add_argument("--config", default=None)
     parser.add_argument("--dataset", default=None, help="指定数据集 CSV（默认最新）")
     parser.add_argument("--out", default=None, help="覆盖报告目录（默认 config.modeling_dir）")
     parser.add_argument("--screened", action="store_true",
@@ -267,7 +295,7 @@ def main() -> None:
     out_dir = resolve_out_dir(cfg, args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     suffix = "_screened" if args.screened else ""
-    md_path = out_dir / f"baseline_{_Date.today().isoformat()}{suffix}.md"
+    md_path = out_dir / f"baseline_fold_safe_{_Date.today().isoformat()}{suffix}.md"
     md_path.write_text(render_markdown(res, dataset_path), encoding="utf-8")
 
     print(f"[go2w-quant] 基线模型：{res['n_runs']} runs × {res['n_features']} 特征（{dataset_path.name}）")
