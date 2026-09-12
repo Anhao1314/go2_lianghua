@@ -1,3 +1,5 @@
+> 当前状态：飞书通知已移除；机器参数使用 config.local.json。全程特征基线仅用于事后分析，不能用于在线早停或 ETA 预测；历史指标保留原始口径。
+
 # go2w-quant 项目上下文
 
 > 本文件供 Codex/AI 助手快速理解项目，避免扫描全量代码。修改项目前先读本文件。
@@ -11,9 +13,8 @@
 ## 环境
 
 - 项目路径：`D:\lianghua\go2_lianghua`（Windows 端）
-- Linux 训练端：`/home/anhao/jiaoben-web/unitree-go2w-mobility`，webpanel `http://192.168.50.175:8787`
+- Linux 训练端：`<本地训练仓库路径>`，webpanel `http://127.0.0.1:8787`
 - Python 3，依赖见 `requirements.txt`
-- 飞书告警 webhook 已配置在 `config.json` monitor 段
 
 ## 核心文件职责
 
@@ -26,7 +27,7 @@
 | `backtest_engine.py` | 滚动回测框架（leave-one-future-out，插件协议） | 时间不泄漏原则 |
 | `label_enrichment.py` | 7 维标签富化（collapsed/best_step/stop_justified 等） | — |
 | `data_screening.py` | 4 条筛选规则 + 异常归档 + LOO 无泄漏对比 | Config A 逐样本留一折 |
-| `realtime_monitor.py` | Windows 端 5 秒轮询 webpanel，飞书告警 | 状态机、冷却逻辑 |
+| `realtime_monitor.py` | Windows 端 5 秒轮询 webpanel，本地风险展示 | 状态与风险展示 |
 | `consistency_check.py` | 离线 vs 实时因子一致性校验 | — |
 | `curve_fit.py` | 幂律/指数学习曲线拟合 | — |
 | `baseline.py` | duration 回归基线（LOO） | — |
@@ -115,8 +116,7 @@ python label_enrichment.py --today 2026-08-18
 python data_screening.py --today 2026-08-18
 python modeling.py --today 2026-08-18
 python consistency_check.py --task balance --seed seed00 --today 2026-08-18
-python realtime_monitor.py --once          # 单轮（会走通知逻辑）
-python realtime_monitor.py --test-notify   # 测试飞书通知
+python realtime_monitor.py --once          # 单轮（本地表格与日志）
 
 # Windows 入口
 run_windows.bat --backtest

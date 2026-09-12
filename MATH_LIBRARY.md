@@ -1,3 +1,5 @@
+> 当前状态：飞书通知已移除；机器参数使用 config.local.json。全程特征基线仅用于事后分析，不能用于在线早停或 ETA 预测；历史指标保留原始口径。
+
 # MATH_LIBRARY：公式与因子口径库（go2w-quant）
 
 > 2026-08-18 全量公式审计结论：1 个关键 bug（screening Config A 数据泄漏）已修复、4 处命名歧义已澄清、1 个缺失因子（eval_neg_ratio）已补齐。

@@ -1,3 +1,5 @@
+> 当前状态：飞书通知已移除；机器参数使用 config.local.json。全程特征基线仅用于事后分析，不能用于在线早停或 ETA 预测；历史指标保留原始口径。
+
 # go2w-quant v2：量化风控与训练决策体系
 
 > 依据：`data/datasets/` 六张表（runs / eval_points / tb_points / snapshots / reports / costs）
@@ -131,9 +133,7 @@ data/datasets/*.csv ──> factors.py（因子 + 规则 + 分级） ──> qua
 
   - 实时监控（已完成，2026-08-18）：`realtime_monitor.py`——Windows 侧建议制监控守护。
     - 每 5 秒轮询 webpanel（/api/state + /api/viewers），因子字典适配器复用 factors.run_risk_items（不重实现阈值）；
-    - R2+ 按 (task,seed,factor) 冷却 10 分钟发送飞书通知，升级（R1→R2 / R2→R3）免冷却；发送失败不记冷却、下轮重试；
     - stale/NaN 直接触发（stall>60min 带 stale 标志 / nan 标志 → R2）；新 run 检测（步数回退或 alive 翻转）整体重置状态；
-    - 控制台 ANSI 表格 + data/monitor/realtime_log.csv 追加日志；CLI：--once / --test-notify；
     - config.json 新增 `monitor` 段；requirements.txt 追加 requests；run_windows.bat 新增 --monitor。
 
 ## 十、假设与边界

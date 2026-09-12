@@ -1,3 +1,5 @@
+> 当前状态：飞书通知已移除；机器参数使用 config.local.json。全程特征基线仅用于事后分析，不能用于在线早停或 ETA 预测；历史指标保留原始口径。
+
 # go2w-quant 阶段记录
 
 > 记录项目从起源到当前阶段的完整历程、关键决策、经验教训与下一步计划。
@@ -42,7 +44,7 @@
 | curve_fit.py | 幂律/指数学习曲线拟合 |
 | label_enrichment.py | 7 维标签富化 |
 | data_screening.py | 4 条筛选规则 + LOO 无泄漏对比 |
-| realtime_monitor.py | Windows 端 5 秒轮询 webpanel + 飞书告警 |
+| realtime_monitor.py | Windows 端 5 秒轮询 webpanel + 本地风险展示 |
 | consistency_check.py | 离线 vs 实时因子一致性校验 |
 | annotate_alerts.py | 告警日志自动标注 |
 

@@ -1,3 +1,5 @@
+> 当前状态：飞书通知已移除；机器参数使用 config.local.json。全程特征基线仅用于事后分析，不能用于在线早停或 ETA 预测；历史指标保留原始口径。
+
 # Windows 使用说明
 
 go2w-quant 在 Windows 上用于**查看数据集与运行统计**；数据采集只在
@@ -48,3 +50,7 @@ Linux 机器会自动把新数据推送到 GitHub，Windows 端执行：
 git pull
 run_windows.bat
 ```
+
+## 隔离离线分析
+
+运行 `run_windows.bat --pipeline --today 2026-09-06 --out data/modeling/local_review`，再使用 `run_windows.bat --baseline --dataset data/modeling/local_review/dataset_2026-09-06.csv --out data/modeling/local_review`。无需训练端；本地配置优先，--config 可以显式覆盖。

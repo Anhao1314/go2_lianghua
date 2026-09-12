@@ -1,99 +1,23 @@
-# AGENTS.md — go2w-quant 开发约定
+# 开发约定
 
-> AI 助手（Codex 等）在本项目工作时必须遵守的约定。
+- Python/文档 UTF-8 无 BOM，编辑时保留 CRLF；Linux shell 脚本使用 LF。CSV 用 utf-8-sig。
+- 因子优先纯函数，不重命名现有因子；阈值配置驱动。
+- 保持既有 CSV schema 和风险规则，行为变化必须明确说明。
+- 提交前运行 `pytest tests/`；新增行为补正常、边界及失败测试。
+- 离线样例回归产物写入独立目录，不覆盖历史报告。真实 Linux 采集和 Windows 验证无法执行时明确记录。
 
-## 编码约定
+## 人工标签与同步
 
-- **文件编码**：UTF-8 无 BOM（CSV 输出用 utf-8-sig 兼容 Excel）
-- **行尾**：CRLF（Windows），用 Python 写文件时显式控制换行，避免 `\r\r\n`
-- **纯函数优先**：factors.py 中的因子计算必须是纯函数，不依赖全局状态
-- **不重命名现有因子**：下游引用太多，用 docstring 澄清 + 新增因子替代
-- **配置驱动**：所有阈值放 `config.json`，不硬编码
+`data/datasets/manual_labels.csv` 为人工字段权威层，按 `(task, seed)` 非空覆盖 verdict、success_rate、label_source、label_updated_at。空值保留自动值；重复键或非法标签报错。
 
-## 质量门禁（提交前必须通过）
+自动同步仅允许数据目录改动，禁止混入其他暂存内容。远端领先或分叉时停止，人工核对后同步；不要按文件名批量选择冲突版本。
 
-1. `pytest tests/` 全绿
-2. 新增模块必须有对应测试文件（`tests/test_<module>.py`）
-3. 真实数据冒烟通过（对 balance/seed00 等已知 run 跑通，产物入库）
-4. 不改 factors.py / backtest_engine.py / config.json 的现有行为，除非明确要求
-5. 产物文件（data/modeling/*.csv/md）随代码一起提交
+rebase 冲突中 `ours` 通常是重放到的上游状态，`theirs` 是当前被重放的提交。结合实际冲突确认，不能将其简单等同于本机/远端。
 
-## Git 提交流程
+## 安全与数据边界
 
-```bash
-git add -A
-git commit -m "<模块>: <简述>"
-git pull --rebase origin main
-git push
-```
-
-- 提交信息用中文简述，如 `factors: 新增 eval_neg_ratio 因子`
-- 提交前确认工作区只有本次改动，不含临时文件
-- data/monitor/ 下的日志文件已 .gitignore，不提交
-
-## 数据同步与冲突处理
-
-当 Linux 训练端推送新数据后，Windows 量化端需要同步数据。使用 **go2w-quant-sync skill** 标准化此流程：
-
-- **Skill 位置**：`C:\Users\24821\AppData\Local\Doubao\User Data\Profile 1\.doubao\agent_mode\workspace\.user_skills\go2w-quant-sync\`
-- **先读取** `SKILL.md` 了解完整 10 步流程
-- **自动化脚本**：
-  - `scripts/sync_and_resolve.py --project-dir .`：git pull + 冲突检测 + 人工字段恢复 + 0 mismatch 验证
-  - `scripts/verify_sync.py --project-dir .`：标签分布 + 规则统计 + 误杀检查 + 对比报告
-
-### 人工字段权威层
-
-`manual_labels.csv`（项目根目录）是人工标注的唯一权威来源。以下 4 个字段以它为准，Linux 自动采集器会覆盖它们，同步时必须恢复：
-
-- `verdict`（pass/fail/unknown）
-- `success_rate`（0.0~1.0）
-- `label_source`（formal_eval/manual_cheating_exposed/auto 等）
-- `label_updated_at`（时间戳）
-
-合并策略：取远端（Linux）版本为基 → 用 manual_labels.csv 覆盖上述 4 个人工字段 → 保留 Linux 新自动字段（duration_seconds、total_steps、新 run 等）。
-
-### rebase 冲突方向（重要）
-
-`git rebase` 中 `--theirs` = 远端（Linux），`--ours` = 本地（Windows）。与 `git merge` 相反，不要搞反。
-
-冲突几乎总在 `data/datasets/runs.csv` 和 `data/datasets/labels.csv`。处理方式：
-1. `git checkout --theirs data/datasets/runs.csv data/datasets/labels.csv`（取 Linux 最新自动数据为基）
-2. 用 manual_labels.csv 覆盖 4 个人工字段（sync_and_resolve.py 自动执行）
-3. `git add` + `git rebase --continue`
-4. 验证人工字段 0 mismatch
-
-### 同步后完整流程
-
-```
-sync_and_resolve.py → verify_sync.py → run_pipeline.py --today YYYY-MM-DD → pytest tests/ → git add/commit/push
-```
-
-遇到异常（新字段冲突、P0 修复被覆盖、pass 被误杀）时暂停并说明，不要强行继续。
-
-## 新增模块 checklist
-
-- [ ] 模块代码（纯函数优先）
-- [ ] `tests/test_<module>.py`（覆盖正常/边界/异常）
-- [ ] `config.json` 新增配置段（如需要）
-- [ ] `run_windows.bat` 新增入口（如需要）
-- [ ] `MATH_LIBRARY.md` 更新（如涉及因子公式）
-- [ ] `QUANT_PLAN.md` 更新（如涉及路线图）
-- [ ] `PROJECT_CONTEXT.md` 更新（如涉及文件清单/因子清单）
-- [ ] 真实数据冒烟通过
-
-## 数据更新后管线重跑顺序
-
-collector → label_enrichment → data_screening → backtest_rules → quant → modeling → consistency_check（回归验证因子一致性）
-
-## 安全边界
-
-- 实时监控为建议制，不自动 stop 训练进程
-- 飞书通知失败不阻塞主流程，仅控制台提示
-- API 调用有超时（5s）和重试，不无限等待
-- 回测为事后复盘工具，不自动干预训练
-
-## 已知技术债
-
-- `eval_std_recent` / `eval_slope_per_1e6` 在实时路径结构性不可用（API 无历史数据），一致性校验中标记为 N/A
-- duration 回归 R² 为负/低（样本不足），仅作框架验证
-- 11 个 run 无 eval_points（insufficient），待 Linux 端补采集
+- 凭据与机器配置只放被忽略的本地配置，不提交公开仓库。
+- 监控仅输出本地建议、表格和日志，不发送消息，不自动停止训练。
+- 事后分析包含最终验收数据，不能声称在线预测能力。
+- 单 CSV 原子替换不保证多表批次一致；采集与分析避免并发。
+- 本轮不重写 Git 历史，已公开凭据需在服务侧撤销。
